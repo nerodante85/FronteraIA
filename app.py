@@ -16,7 +16,7 @@ st.set_page_config(
 
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 
-# ==================== INYECCIÓN CSS SEGURA Y LIMPIA ====================
+# ==================== INYECCIÓN CSS SEGURA ====================
 css_code = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -103,8 +103,6 @@ div[data-baseweb="input"] {
 </style>
 """
 
-# Renderizado mediante HTML puro
-st.components.v1.html(css_code, height=0, width=0)
 st.markdown(css_code, unsafe_allow_html=True)
 
 
@@ -172,47 +170,56 @@ DATABASE_NANDINA = {
 }
 
 
-# ==================== GENERACIÓN DE PDF ====================
+# ==================== GENERACIÓN DE PDF CORREGIDA ====================
 def generar_pdf_cotizacion(datos):
   pdf = FPDF()
   pdf.add_page()
-  pdf.set_font("Arial", "B", 16)
+  pdf.set_font("Helvetica", "B", 16)
 
   pdf.cell(
       0,
       10,
       "FronteraIQ - Reporte de Cotizacion Aduanera",
-      ln=True,
+      new_x="LMARGIN",
+      new_y="NEXT",
       align="C",
   )
-  pdf.set_font("Arial", "I", 10)
+  pdf.set_font("Helvetica", "I", 10)
   pdf.cell(
       0,
       8,
       "Liquidacion de Costos Landed y Tributos DIAN (Cucuta - Frontera)",
-      ln=True,
+      new_x="LMARGIN",
+      new_y="NEXT",
       align="C",
   )
   pdf.ln(5)
 
-  pdf.set_font("Arial", "B", 11)
-  pdf.cell(0, 7, f"Producto: {datos['producto']}", ln=True)
-  pdf.set_font("Arial", "", 10)
+  pdf.set_font("Helvetica", "B", 11)
+  pdf.cell(0, 7, f"Producto: {datos['producto']}", new_x="LMARGIN", new_y="NEXT")
+  pdf.set_font("Helvetica", "", 10)
   pdf.cell(
       0,
       6,
       f"Partida NANDINA: {datos['partida']} | Cantidad: {datos['unidades']:,}"
       " uds",
-      ln=True,
+      new_x="LMARGIN",
+      new_y="NEXT",
   )
-  pdf.cell(0, 6, f"TRM Aplicada: ${datos['trm']:,.2f} COP/USD", ln=True)
+  pdf.cell(
+      0,
+      6,
+      f"TRM Aplicada: ${datos['trm']:,.2f} COP/USD",
+      new_x="LMARGIN",
+      new_y="NEXT",
+  )
   pdf.ln(5)
 
-  pdf.set_font("Arial", "B", 10)
-  pdf.cell(120, 7, "Concepto", 1)
-  pdf.cell(70, 7, "Valor (COP)", 1, ln=True, align="R")
+  pdf.set_font("Helvetica", "B", 10)
+  pdf.cell(120, 7, "Concepto", border=1)
+  pdf.cell(70, 7, "Valor (COP)", border=1, new_x="LMARGIN", new_y="NEXT", align="R")
 
-  pdf.set_font("Arial", "", 9)
+  pdf.set_font("Helvetica", "", 9)
   items = [
       ("Valor CIF (USD)", f"${datos['cif_usd']:,.2f} USD"),
       ("Valor CIF (COP)", f"${datos['cif_cop']:,.0f} COP"),
@@ -225,11 +232,13 @@ def generar_pdf_cotizacion(datos):
   ]
 
   for concepto, valor in items:
-    pdf.cell(120, 6, concepto, 1)
-    pdf.cell(70, 6, valor, 1, ln=True, align="R")
+    pdf.cell(120, 6, concepto, border=1)
+    pdf.cell(
+        70, 6, valor, border=1, new_x="LMARGIN", new_y="NEXT", align="R"
+    )
 
   pdf.ln(8)
-  pdf.set_font("Arial", "I", 9)
+  pdf.set_font("Helvetica", "I", 9)
   pdf.multi_cell(
       0,
       5,
@@ -238,7 +247,8 @@ def generar_pdf_cotizacion(datos):
       " una liquidacion oficial de la DIAN.",
   )
 
-  return pdf.output(dest="S").encode("latin-1")
+  # Retorna los bytes directamente usando el API actualizado de fpdf2
+  return bytes(pdf.output())
 
 
 # ==================== BARRA LATERAL (SIDEBAR) ====================
