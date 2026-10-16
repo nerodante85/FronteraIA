@@ -6,7 +6,7 @@ import plotly.express as px
 import requests
 import streamlit as st
 
-# ==================== CONFIGURACIÓN DE LA PÁGINA ====================
+# ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
     page_title="FronteraIQ Pro — Inteligencia Aduanera Cúcuta",
     page_icon="🚢",
@@ -16,22 +16,24 @@ st.set_page_config(
 
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 
-# ==================== INYECCIÓN CSS LIMPIA ====================
-custom_css = """
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+# ==================== INYECCIÓN CSS SEGURA Y LIMPIA ====================
+css_code = """
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
 
 .hero-header {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     padding: 32px 40px;
     border-radius: 20px;
-    color: white;
+    color: #ffffff;
     margin-bottom: 28px;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
 }
+
 .hero-title {
     font-size: 32px;
     font-weight: 800;
@@ -39,6 +41,7 @@ html, body, [class*="css"] {
     margin-bottom: 6px;
     color: #f8fafc;
 }
+
 .hero-subtitle {
     font-size: 15px;
     color: #94a3b8;
@@ -51,12 +54,8 @@ html, body, [class*="css"] {
     border-radius: 16px;
     padding: 22px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.metric-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-}
+
 .metric-label {
     font-size: 12px;
     font-weight: 700;
@@ -65,12 +64,14 @@ html, body, [class*="css"] {
     letter-spacing: 0.5px;
     margin-bottom: 8px;
 }
+
 .metric-value {
     font-size: 26px;
     font-weight: 800;
     color: #f8fafc;
     margin-bottom: 4px;
 }
+
 .metric-subtext {
     font-size: 12px;
     font-weight: 600;
@@ -79,7 +80,7 @@ html, body, [class*="css"] {
 
 .whatsapp-btn {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white !important;
+    color: #ffffff !important;
     font-weight: 700;
     padding: 14px 24px;
     border-radius: 12px;
@@ -88,16 +89,12 @@ html, body, [class*="css"] {
     font-size: 15px;
     text-align: center;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-    transition: all 0.2s ease;
-}
-.whatsapp-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
 }
 
 div[data-baseweb="input"] {
     border-radius: 10px !important;
 }
+
 .stButton>button {
     border-radius: 10px !important;
     font-weight: 600 !important;
@@ -106,10 +103,12 @@ div[data-baseweb="input"] {
 </style>
 """
 
-st.markdown(custom_css, unsafe_allow_html=True)
+# Renderizado mediante HTML puro
+st.components.v1.html(css_code, height=0, width=0)
+st.markdown(css_code, unsafe_allow_html=True)
 
 
-# ==================== TRM EN TIEMPO REAL ====================
+# ==================== CONSULTA TRM OFICIAL ====================
 @st.cache_data(ttl=3600)
 def obtener_trm_actual():
   try:
@@ -128,7 +127,7 @@ def obtener_trm_actual():
 trm_oficial = obtener_trm_actual()
 
 
-# ==================== BASE DE DATOS DE PARTIDAS ====================
+# ==================== BASE DE DATOS NANDINA ====================
 DATABASE_NANDINA = {
     "Personalizado / Otra partida": {
         "codigo": "",
@@ -173,7 +172,7 @@ DATABASE_NANDINA = {
 }
 
 
-# ==================== GENERADOR DE PDF ====================
+# ==================== GENERACIÓN DE PDF ====================
 def generar_pdf_cotizacion(datos):
   pdf = FPDF()
   pdf.add_page()
@@ -242,7 +241,7 @@ def generar_pdf_cotizacion(datos):
   return pdf.output(dest="S").encode("latin-1")
 
 
-# ==================== SIDEBAR ====================
+# ==================== BARRA LATERAL (SIDEBAR) ====================
 st.sidebar.header("🔐 Acceso de Usuario")
 tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium ⭐"])
 
@@ -278,7 +277,7 @@ else:
   tasa_usdt_cop = 4050.0
 
 
-# ==================== ENCABEZADO HERÓICO ====================
+# ==================== ENCABEZADO PRINCIPAL ====================
 st.markdown(
     """
     <div class="hero-header">
@@ -290,7 +289,7 @@ st.markdown(
 )
 
 
-# ==================== FORMULARIO DE ENTRADA ====================
+# ==================== FORMULARIO ====================
 col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
@@ -378,7 +377,7 @@ with col_right:
   )
 
 
-# ==================== MOTOR DE CÁLCULO ====================
+# ==================== CÁLCULOS ====================
 cif_usd = fob_usd + flete_usd + seguro_usd
 cif_cop = cif_usd * trm
 
