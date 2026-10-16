@@ -271,4 +271,323 @@ if tipo_plan == "Pro / Premium ⭐":
 st.sidebar.divider()
 st.sidebar.header("⚙️ Parámetros de Monedas")
 trm = st.sidebar.number_input(
-    "TRM Oficial (COP / USD
+    "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
+)
+
+# === CONVERSOR FRONTERIZO (FUNCIONALIDAD C) ===
+if es_pro:
+  st.sidebar.subheader("💱 Tasa Fronteriza (Multi-moneda)")
+  tasa_ves_cop = st.sidebar.number_input(
+      "Tasa COP / Bolívares (VES)", value=0.08, step=0.01, format="%.4f"
+  )
+  tasa_usdt_cop = st.sidebar.number_input(
+      "Tasa COP / USDT (Cripto)", value=4050.0, step=10.0
+  )
+else:
+  tasa_ves_cop = 0.08
+  tasa_usdt_cop = 4050.0
+
+
+# ==================== ENCABEZADO HERÓICO ====================
+st.markdown(
+    """
+    <div class="hero-header">
+        <div class="hero-title">🚢 FronteraIQ Pro</div>
+        <div class="hero-subtitle">Plataforma de Inteligencia Aduanera y Cálculo de Costos Landed en Cúcuta</div>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+
+# ==================== FORMULARIO DE ENTRADA ====================
+col_left, col_right = st.columns([1, 1], gap="large")
+
+with col_left:
+  st.subheader("📦 Mercancía y Partida NANDINA")
+
+  producto_sel = st.selectbox(
+      "🔍 Seleccionar o buscar tipo de producto",
+      list(DATABASE_NANDINA.keys()),
+  )
+  partida_info = DATABASE_NANDINA[producto_sel]
+
+  if producto_sel == "Personalizado / Otra partida":
+    producto = st.text_input("Nombre / Referencia", value="Mercancía General")
+    partida_arancelaria = st.text_input(
+        "Subpartida Arancelaria", value="0000.00.00.00"
+    )
+    def_arancel = 10.0
+    def_iva = 19.0
+  else:
+    producto = producto_sel
+    partida_arancelaria = st.text_input(
+        "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
+    )
+    def_arancel = partida_info["arancel"]
+    def_iva = partida_info["iva"]
+
+  unidades = st.number_input(
+      "Cantidad de Unidades", min_value=1, value=1000, step=1
+  )
+
+  st.markdown("#### 💰 Valores de la Carga (USD)")
+  fob_usd = st.number_input(
+      "Valor FOB Total (USD)", min_value=0.0, value=10000.0, step=100.0
+  )
+  flete_usd = st.number_input(
+      "Flete Internacional (USD)", min_value=0.0, value=1200.0, step=50.0
+  )
+  seguro_usd = st.number_input(
+      "Seguro Internacional (USD)", min_value=0.0, value=150.0, step=10.0
+  )
+
+with col_right:
+  st.subheader("🏛️ Impuestos y Gastos Locales")
+
+  col_imp1, col_imp2 = st.columns(2)
+  with col_imp1:
+    pct_arancel = st.number_input(
+        "Arancel (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=def_arancel,
+        step=0.5,
+    )
+  with col_imp2:
+    pct_iva = st.number_input(
+        "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
+    )
+
+  st.markdown("#### 🚚 Logística Frontera Cúcuta (COP)")
+  agenciamiento_cop = st.number_input(
+      "Agenciamiento SIA (COP)", min_value=0.0, value=450000.0, step=50000.0
+  )
+  bodegaje_cop = st.number_input(
+      "Bodegaje / Depósito (COP)", min_value=0.0, value=300000.0, step=25000.0
+  )
+  transporte_local_cop = st.number_input(
+      "Transporte Terrestre Local (COP)",
+      min_value=0.0,
+      value=800000.0,
+      step=50000.0,
+  )
+  otros_gastos_cop = st.number_input(
+      "Otros Gastos / Inspecciones (COP)",
+      min_value=0.0,
+      value=200000.0,
+      step=25000.0,
+  )
+
+  pct_margen = st.number_input(
+      "Margen Deseado (%)",
+      min_value=0.0,
+      max_value=99.0,
+      value=30.0,
+      step=1.0,
+  )
+
+
+# ==================== MOTOR DE CÁLCULO ====================
+cif_usd = fob_usd + flete_usd + seguro_usd
+cif_cop = cif_usd * trm
+
+arancel_cop = cif_cop * (pct_arancel / 100)
+base_iva_cop = cif_cop + arancel_cop
+iva_cop = base_iva_cop * (pct_iva / 100)
+total_tributos_cop = arancel_cop + iva_cop
+
+total_gastos_locales_cop = (
+    agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
+)
+costo_total_landed_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+costo_unitario_cop = costo_total_landed_cop / unidades if unidades > 0 else 0
+precio_sugerido_unitario_cop = (
+    costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
+)
+
+costo_total_ves = (
+    costo_total_landed_cop / tasa_ves_cop if tasa_ves_cop > 0 else 0
+)
+costo_total_usdt = (
+    costo_total_landed_cop / tasa_usdt_cop if tasa_usdt_cop > 0 else 0
+)
+
+
+# ==================== PRESENTACIÓN DE RESULTADOS ====================
+st.divider()
+st.subheader("📈 Resumen de Resultados")
+
+m1, m2, m3, m4 = st.columns(4)
+
+m1.markdown(
+    f"""
+    <div class="metric-card">
+        <div class="metric-label">Costo Total Landed</div>
+        <div class="metric-value">$ {costo_total_landed_cop:,.0f}</div>
+        <div class="metric-subtext">COP Puesto en Cúcuta</div>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+m2.markdown(
+    f"""
+    <div class="metric-card">
+        <div class="metric-label">Costo Unitario</div>
+        <div class="metric-value" style="color:#2563eb;">$ {costo_unitario_cop:,.2f}</div>
+        <div class="metric-subtext" style="color:#64748b;">Por unidad importada</div>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+m3.markdown(
+    f"""
+    <div class="metric-card">
+        <div class="metric-label">Impuestos DIAN</div>
+        <div class="metric-value" style="color:#ef4444;">$ {total_tributos_cop:,.0f}</div>
+        <div class="metric-subtext" style="color:#64748b;">Arancel + IVA</div>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+m4.markdown(
+    f"""
+    <div class="metric-card">
+        <div class="metric-label">Precio Venta Sugerido</div>
+        <div class="metric-value">$ {precio_sugerido_unitario_cop:,.2f}</div>
+        <div class="metric-subtext">Margen {pct_margen}%</div>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+if es_pro:
+  st.info(
+      f"💱 **Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
+      f" `{costo_total_usdt:,.2f} USDT` | **Bolívares (VES):**"
+      f" `{costo_total_ves:,.2f} VES`"
+  )
+
+col_chart, col_table = st.columns([1, 1], gap="large")
+
+with col_chart:
+  st.markdown("#### Distribución de Costos")
+  df_chart = pd.DataFrame({
+      "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
+      "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
+  })
+  fig = px.pie(
+      df_chart,
+      values="Monto_COP",
+      names="Concepto",
+      hole=0.4,
+      color_discrete_sequence=["#0f172a", "#ef4444", "#2563eb"],
+  )
+  st.plotly_chart(fig, use_container_width=True)
+
+with col_table:
+  st.markdown("#### Desglose de Liquidación")
+  liquidacion_data = {
+      "Concepto": [
+          "Valor CIF (USD)",
+          "Valor CIF (COP)",
+          "Arancel DIAN (COP)",
+          "IVA DIAN (COP)",
+          "Total Impuestos",
+          "Gastos Cúcuta",
+          "COSTO TOTAL LANDED",
+      ],
+      "Monto": [
+          f"$ {cif_usd:,.2f} USD",
+          f"$ {cif_cop:,.0f} COP",
+          f"$ {arancel_cop:,.0f} COP",
+          f"$ {iva_cop:,.0f} COP",
+          f"$ {total_tributos_cop:,.0f} COP",
+          f"$ {total_gastos_locales_cop:,.0f} COP",
+          f"$ {costo_total_landed_cop:,.0f} COP",
+      ],
+  }
+  st.dataframe(
+      pd.DataFrame(liquidacion_data), use_container_width=True, hide_index=True
+  )
+
+
+# ==================== ACCIONES Y REPORTES ====================
+st.divider()
+st.subheader("📲 Acciones Directas")
+
+mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente operación en FronteraIQ:
+
+📌 *Producto:* {producto}
+🔢 *Partida:* {partida_arancelaria}
+📦 *Cantidad:* {unidades:,} uds
+💵 *Valor CIF:* ${cif_usd:,.2f} USD
+🏛️ *Tributos DIAN:* ${total_tributos_cop:,.0f} COP
+🚚 *Costo Landed Total:* ${costo_total_landed_cop:,.0f} COP"""
+
+mensaje_encoded = urllib.parse.quote(mensaje_whatsapp)
+url_whatsapp = (
+    f"https://api.whatsapp.com/send?phone={TELEFONO_WHATSAPP}&text={mensaje_encoded}"
+)
+
+c1, c2, c3 = st.columns([1, 1, 1])
+
+with c1:
+  st.markdown(
+      f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">💬'
+      " Contactar por WhatsApp</a>",
+      unsafe_allow_html=True,
+  )
+
+with c2:
+  if es_pro:
+    datos_pdf = {
+        "producto": producto,
+        "partida": partida_arancelaria,
+        "unidades": unidades,
+        "trm": trm,
+        "cif_usd": cif_usd,
+        "cif_cop": cif_cop,
+        "arancel_cop": arancel_cop,
+        "iva_cop": iva_cop,
+        "total_tributos_cop": total_tributos_cop,
+        "gastos_locales_cop": total_gastos_locales_cop,
+        "costo_total_landed_cop": costo_total_landed_cop,
+        "costo_unitario_cop": costo_unitario_cop,
+    }
+    pdf_bytes = generar_pdf_cotizacion(datos_pdf)
+    st.download_button(
+        label="📄 Descargar Cotización PDF (Pro)",
+        data=pdf_bytes,
+        file_name=f"cotizacion_{producto.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
+  else:
+    st.button(
+        "📄 Descargar PDF (Licencia Pro 🔒)",
+        disabled=True,
+        use_container_width=True,
+    )
+
+with c3:
+  df_export = pd.DataFrame([{
+      "Producto": producto,
+      "Partida": partida_arancelaria,
+      "Unidades": unidades,
+      "Costo Landed COP": costo_total_landed_cop,
+      "Costo Unitario COP": costo_unitario_cop,
+  }])
+  csv = df_export.to_csv(index=False).encode("utf-8")
+  st.download_button(
+      label="📥 Exportar a CSV",
+      data=csv,
+      file_name="cotizacion.csv",
+      mime="text/csv",
+      use_container_width=True,
+  )
