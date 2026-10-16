@@ -16,104 +16,97 @@ st.set_page_config(
 
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 
+# ==================== INYECCIÓN CSS LIMPIA ====================
+custom_css = """
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
 
-# ==================== INYECCIÓN CSS: VARIACIÓN 1 (MODERN SAAS) ====================
-st.markdown(
-    """
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-    /* Estilos Generales */
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    
-    /* Encabezado Principal */
-    .hero-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 32px 40px;
-        border-radius: 20px;
-        color: white;
-        margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
-    }
-    .hero-title {
-        font-size: 32px;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        margin-bottom: 6px;
-        color: #f8fafc;
-    }
-    .hero-subtitle {
-        font-size: 15px;
-        color: #94a3b8;
-        font-weight: 500;
-    }
+.hero-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    padding: 32px 40px;
+    border-radius: 20px;
+    color: white;
+    margin-bottom: 28px;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+}
+.hero-title {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    color: #f8fafc;
+}
+.hero-subtitle {
+    font-size: 15px;
+    color: #94a3b8;
+    font-weight: 500;
+}
 
-    /* Tarjetas de Métricas Flotantes */
-    .metric-card {
-        background-color: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 16px;
-        padding: 22px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
-    }
-    .metric-label {
-        font-size: 12px;
-        font-weight: 700;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-    }
-    .metric-value {
-        font-size: 26px;
-        font-weight: 800;
-        color: #f8fafc;
-        margin-bottom: 4px;
-    }
-    .metric-subtext {
-        font-size: 12px;
-        font-weight: 600;
-        color: #10b981;
-    }
+.metric-card {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+.metric-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.metric-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 4px;
+}
+.metric-subtext {
+    font-size: 12px;
+    font-weight: 600;
+    color: #10b981;
+}
 
-    /* Botón Principal de WhatsApp */
-    .whatsapp-btn {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white !important;
-        font-weight: 700;
-        padding: 14px 24px;
-        border-radius: 12px;
-        text-decoration: none;
-        display: block;
-        font-size: 15px;
-        text-align: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-        transition: all 0.2s ease;
-    }
-    .whatsapp-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
-    }
+.whatsapp-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white !important;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 15px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    transition: all 0.2s ease;
+}
+.whatsapp-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
 
-    /* Ajustes de componentes nativos de Streamlit */
-    div[data-baseweb="input"] {
-        border-radius: 10px !important;
-    }
-    .stButton>button {
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        height: 48px !important;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
+div[data-baseweb="input"] {
+    border-radius: 10px !important;
+}
+.stButton>button {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    height: 48px !important;
+}
+</style>
+"""
+
+st.markdown(custom_css, unsafe_allow_html=True)
 
 
 # ==================== TRM EN TIEMPO REAL ====================
