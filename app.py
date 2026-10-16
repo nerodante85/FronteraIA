@@ -17,16 +17,14 @@ st.set_page_config(
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 
 
-# ==================== INYECCIÓN CSS: VARIACIÓN 1 (MODERN SAAS / FINTECH) ====================
+# ==================== INYECCIÓN CSS: VARIACIÓN 1 (MODERN SAAS) ====================
 st.markdown(
     """
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-    /* Estilos Generales y Tipografía */
+    /* Estilos Generales */
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: #f8fafc;
-        color: #0f172a;
     }
     
     /* Encabezado Principal */
@@ -36,7 +34,7 @@ st.markdown(
         border-radius: 20px;
         color: white;
         margin-bottom: 28px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
     }
     .hero-title {
         font-size: 32px;
@@ -53,21 +51,21 @@ st.markdown(
 
     /* Tarjetas de Métricas Flotantes */
     .metric-card {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        background-color: #1e293b;
+        border: 1px solid #334155;
         border-radius: 16px;
         padding: 22px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
     }
     .metric-label {
         font-size: 12px;
         font-weight: 700;
-        color: #64748b;
+        color: #94a3b8;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 8px;
@@ -75,7 +73,7 @@ st.markdown(
     .metric-value {
         font-size: 26px;
         font-weight: 800;
-        color: #0f172a;
+        color: #f8fafc;
         margin-bottom: 4px;
     }
     .metric-subtext {
@@ -137,7 +135,7 @@ def obtener_trm_actual():
 trm_oficial = obtener_trm_actual()
 
 
-# ==================== BASE DE DATOS DE PARTIDAS (FUNCIONALIDAD B) ====================
+# ==================== BASE DE DATOS DE PARTIDAS ====================
 DATABASE_NANDINA = {
     "Personalizado / Otra partida": {
         "codigo": "",
@@ -182,7 +180,7 @@ DATABASE_NANDINA = {
 }
 
 
-# ==================== GENERADOR DE PDF (FUNCIONALIDAD A) ====================
+# ==================== GENERADOR DE PDF ====================
 def generar_pdf_cotizacion(datos):
   pdf = FPDF()
   pdf.add_page()
@@ -251,7 +249,7 @@ def generar_pdf_cotizacion(datos):
   return pdf.output(dest="S").encode("latin-1")
 
 
-# ==================== SIDEBAR: CONTROL DE ACCESO (FUNCIONALIDAD D) ====================
+# ==================== SIDEBAR ====================
 st.sidebar.header("🔐 Acceso de Usuario")
 tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium ⭐"])
 
@@ -274,7 +272,6 @@ trm = st.sidebar.number_input(
     "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
 )
 
-# === CONVERSOR FRONTERIZO (FUNCIONALIDAD C) ===
 if es_pro:
   st.sidebar.subheader("💱 Tasa Fronteriza (Multi-moneda)")
   tasa_ves_cop = st.sidebar.number_input(
@@ -435,8 +432,8 @@ m2.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Costo Unitario</div>
-        <div class="metric-value" style="color:#2563eb;">$ {costo_unitario_cop:,.2f}</div>
-        <div class="metric-subtext" style="color:#64748b;">Por unidad importada</div>
+        <div class="metric-value" style="color:#60a5fa;">$ {costo_unitario_cop:,.2f}</div>
+        <div class="metric-subtext" style="color:#94a3b8;">Por unidad importada</div>
     </div>
 """,
     unsafe_allow_html=True,
@@ -446,8 +443,8 @@ m3.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Impuestos DIAN</div>
-        <div class="metric-value" style="color:#ef4444;">$ {total_tributos_cop:,.0f}</div>
-        <div class="metric-subtext" style="color:#64748b;">Arancel + IVA</div>
+        <div class="metric-value" style="color:#f87171;">$ {total_tributos_cop:,.0f}</div>
+        <div class="metric-subtext" style="color:#94a3b8;">Arancel + IVA</div>
     </div>
 """,
     unsafe_allow_html=True,
@@ -486,7 +483,7 @@ with col_chart:
       values="Monto_COP",
       names="Concepto",
       hole=0.4,
-      color_discrete_sequence=["#0f172a", "#ef4444", "#2563eb"],
+      color_discrete_sequence=["#38bdf8", "#f87171", "#818cf8"],
   )
   st.plotly_chart(fig, use_container_width=True)
 
