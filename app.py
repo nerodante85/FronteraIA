@@ -1,6 +1,7 @@
 import urllib.parse
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+import requests
 import streamlit as st
 
 # Configuración de la página
@@ -9,6 +10,26 @@ st.set_page_config(
     page_icon="🚢",
     layout="wide",
 )
+
+
+# === FUNCIÓN PARA CONSULTAR LA TRM EN TIEMPO REAL ===
+@st.cache_data(ttl=3600)  # Guarda el resultado 1 hora para no saturar la API
+def obtener_trm_actual():
+  try:
+    url = (
+        'https://www.datos.gov.co/resource/32sa-213a.json?$order=vigenciasta%20DESC&$limit=1'
+    )
+    response = requests.get(url, timeout=5)
+    if response.status_code == 200:
+      data = response.json()
+      return float(data[0]['valor'])
+  except Exception:
+    pass
+  return 4000.0  # Valor de respaldo si no hay conexión a la API
+
+
+# Obtener la TRM del día
+trm_oficial = obtener_trm_actual()
 
 # Estilo personalizado básico
 st.markdown(
@@ -64,13 +85,23 @@ st.divider()
 
 # Sidebar: Configuración de Parámetros Generales
 st.sidebar.header("⚙️ Parámetros Generales")
+
+# Muestra y permite ajustar la TRM (cargada en tiempo real)
 trm = st.sidebar.number_input(
-    "TRM Proyectada (COP / USD)",
+    "TRM Oficial / Proyectada (COP / USD)",
     min_value=1000.0,
-    value=4000.0,
+    value=trm_oficial,
     step=10.0,
-    help="Tasa de Cambio Representativa del Mercado",
+    help=(
+        "Obtenida en tiempo real desde la API oficial de la Superintendencia"
+        " Financiera de Colombia."
+    ),
 )
+st.sidebar.caption(
+    f"💡 *TRM detectada hoy: ${trm_oficial:,.2f} COP* (puedes editarla si"
+    " proyectas otra tasa)."
+)
+
 operacion = st.sidebar.selectbox(
     "Tipo de Operación",
     ["Importación a Colombia", "Exportación a Venezuela"],
@@ -221,6 +252,7 @@ with col_table:
           "Flete Internacional (USD)",
           "Seguro Internacional (USD)",
           "Valor CIF (USD)",
+          "TRM Utilizada",
           "Valor CIF (COP)",
           "Gravamen Arancelario (COP)",
           "Base Gravable IVA (COP)",
@@ -235,6 +267,7 @@ with col_table:
           f"$ {flete_usd:,.2f} USD",
           f"$ {seguro_usd:,.2f} USD",
           f"$ {cif_usd:,.2f} USD",
+          f"$ {trm:,.2f} COP",
           f"$ {cif_cop:,.0f} COP",
           f"$ {arancel_cop:,.0f} COP",
           f"$ {base_iva_cop:,.0f} COP",
@@ -253,13 +286,13 @@ with col_table:
 st.divider()
 st.subheader("📲 ¿Necesitas Asesoría Profesional para esta Operación?")
 
-# Generación del mensaje predefinido para WhatsApp
 mensaje_whatsapp = f"""Hola, requiero asesoría aduanera y logística para la siguiente operación calculada en FronteraIQ:
 
 📌 *Producto:* {producto}
 🔢 *Partida:* {partida_arancelaria}
 📦 *Cantidad:* {unidades:,} unidades
 💵 *Valor CIF (USD):* ${cif_usd:,.2f} USD
+💱 *TRM:* ${trm:,.2f} COP
 🏛️ *Tributos DIAN (COP):* ${total_tributos_cop:,.0f} COP
 🚚 *Costo Total Landed:* ${costo_total_landed_cop:,.0f} COP
 🏷️ *Costo Unitario:* ${costo_unitario_cop:,.2f} COP
