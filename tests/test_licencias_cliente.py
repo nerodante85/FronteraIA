@@ -51,6 +51,19 @@ def test_validar_envia_solo_el_hash_y_la_llave_de_servicio(monkeypatch):
   assert capturado["json"] == {"p_hash": licencias.hash_clave("FIQ-AAAA-BBBB-CCCC"), "p_sesion": "sesion1"}
 
 
+def test_clave_secret_nueva_va_solo_en_apikey(monkeypatch):
+  capturado = {}
+
+  def falso(url, headers, json, timeout):
+    capturado.update(headers=headers)
+    return Resp({"valida": True})
+
+  monkeypatch.setattr(requests, "post", falso)
+  licencias.validar_licencia("x", "s", URL, "sb_secret_abc")
+  assert capturado["headers"]["apikey"] == "sb_secret_abc"
+  assert "Authorization" not in capturado["headers"]
+
+
 def test_validar_lanza_si_el_servicio_falla(monkeypatch):
   monkeypatch.setattr(requests, "post", lambda *a, **k: Resp({}, 500))
   with pytest.raises(requests.HTTPError):

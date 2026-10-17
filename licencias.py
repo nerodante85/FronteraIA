@@ -35,13 +35,14 @@ def validar_licencia(clave, sesion, url, service_key):
   `vence_el` y `cliente`. Si el servicio falla, LANZA la excepción: quien llama
   decide mostrar un aviso y no activar Pro (falla cerrada) sin cachear el error.
   """
+  # Las claves nuevas (sb_secret_...) no son JWT y van solo en `apikey`;
+  # la clave legacy service_role (JWT) también acepta Authorization: Bearer.
+  encabezados = {"apikey": service_key, "Content-Type": "application/json"}
+  if not service_key.startswith("sb_"):
+    encabezados["Authorization"] = "Bearer " + service_key
   respuesta = requests.post(
       url.rstrip("/") + "/rest/v1/rpc/validar_licencia",
-      headers={
-          "apikey": service_key,
-          "Authorization": "Bearer " + service_key,
-          "Content-Type": "application/json",
-      },
+      headers=encabezados,
       json={"p_hash": hash_clave(clave), "p_sesion": sesion},
       timeout=TIEMPO_ESPERA_S,
   )
