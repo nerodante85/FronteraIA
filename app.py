@@ -72,7 +72,7 @@ TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 # ==================== INYECCIÓN CSS SEGURA ====================
 css_code = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Public+Sans:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700;800&display=swap');
 
 /* Design System FronteraIQ: tokens (solo claro, igual que la landing) */
 :root {
@@ -83,15 +83,18 @@ css_code = """
     --fiq-shadow: 8px 8px 0 #0B2527;
 }
 
-html, body, [class*="css"] {
-    font-family: 'Public Sans', system-ui, sans-serif !important;
+html, body, [class*="css"],
+.stApp :not([data-testid="stIconMaterial"]):not([class*="material" i]):not(:is(h1, h2, h3, h4, .metric-value, .hero-title) *):not(h1):not(h2):not(h3):not(h4):not(.metric-value):not(.hero-title) {
+    font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
 }
-h1, h2, h3 {
-    font-family: 'Archivo', system-ui, sans-serif !important;
-    font-stretch: 125%;
+h1, h2, h3, h4 {
+    font-family: 'Big Shoulders Display', system-ui, sans-serif !important;
     font-weight: 800 !important;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.005em;
 }
+h2 { font-size: 1.8rem !important; }
+h3 { font-size: 2.2rem !important; }
+h4 { font-size: 1.7rem !important; }
 
 .fiq-icono { display: inline-block; vertical-align: -0.2em; margin-right: 12px; }
 .hero-title { display: flex; align-items: center; }
@@ -108,12 +111,12 @@ h1, h2, h3 {
 }
 
 .hero-title {
-    font-family: 'Archivo', system-ui, sans-serif;
-    font-stretch: 125%;
-    font-size: 32px;
+    font-family: 'Big Shoulders Display', system-ui, sans-serif;
+    font-size: 46px;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: 6px;
+    letter-spacing: 0.005em;
+    line-height: 1;
+    margin-bottom: 8px;
     color: var(--fiq-on-ink);
 }
 
@@ -149,10 +152,12 @@ h1, h2, h3 {
 }
 
 .metric-value {
-    font-family: 'Archivo', system-ui, sans-serif;
-    font-size: 26px;
+    font-family: 'Big Shoulders Display', system-ui, sans-serif;
+    font-size: 34px;
+    white-space: nowrap;
     font-weight: 800;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.005em;
+    line-height: 1.05;
     font-variant-numeric: tabular-nums;
     color: inherit;
     margin-bottom: 4px;
