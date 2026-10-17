@@ -1,5 +1,6 @@
 import hmac
 import io
+from datetime import datetime, timedelta, timezone
 import os
 import re
 import urllib.parse
@@ -111,15 +112,25 @@ st.markdown(css_code, unsafe_allow_html=True)
 
 # ==================== CONSULTA TRM OFICIAL ====================
 TRM_RESPALDO = 4000.0
-TRM_URL = "https://www.datos.gov.co/resource/32sa-213a.json"
+# Dataset oficial "Tasa de Cambio Representativa del Mercado - TRM" (datos.gov.co).
+# Campos: valor, unidad, vigenciadesde, vigenciahasta.
+TRM_URL = "https://www.datos.gov.co/resource/32sa-8pi3.json"
+ZONA_COLOMBIA = timezone(timedelta(hours=-5))  # Colombia no usa horario de verano
 
 
 @st.cache_data(ttl=3600)
 def _consultar_trm():
-  """Consulta la TRM vigente. Lanza excepción si falla (los fallos no se cachean)."""
+  """Consulta la TRM vigente hoy. Lanza excepción si falla (los fallos no se cachean)."""
+  hoy = datetime.now(ZONA_COLOMBIA).strftime("%Y-%m-%dT00:00:00")
+  # La TRM de un día se publica con anticipación: se toma la última cuya
+  # vigencia ya comenzó, no la más reciente publicada.
   response = requests.get(
       TRM_URL,
-      params={"$order": "vigenciahasta DESC", "$limit": 1},
+      params={
+          "$where": f"vigenciadesde <= '{hoy}'",
+          "$order": "vigenciadesde DESC",
+          "$limit": 1,
+      },
       timeout=5,
   )
   response.raise_for_status()
