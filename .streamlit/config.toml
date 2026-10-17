@@ -1,0 +1,21 @@
+# Tema FronteraIQ (ver el Design System). Claro y oscuro según el sistema del usuario.
+[theme]
+primaryColor = "#0B2527"
+font = "sans-serif"
+baseRadius = "6px"
+
+[theme.light]
+backgroundColor = "#E8EDEB"
+secondaryBackgroundColor = "#FBFCFB"
+textColor = "#0B2527"
+primaryColor = "#0B2527"
+linkColor = "#1F4FD8"
+borderColor = "#9DB1B1"
+
+[theme.dark]
+backgroundColor = "#0B2527"
+secondaryBackgroundColor = "#123638"
+textColor = "#E8EDEB"
+primaryColor = "#F5B700"
+linkColor = "#7FA2FF"
+borderColor = "#3C5C5F"
