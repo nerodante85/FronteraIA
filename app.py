@@ -10,6 +10,11 @@ import pandas as pd
 import plotly.express as px
 import requests
 import streamlit as st
+import sys
+import uuid
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -385,19 +390,58 @@ def _clave_pro_configurada():
   return clave or os.environ.get("PRO_LICENSE_KEY")
 
 
+def _config_licencias():
+  """(url, clave de servicio) de Supabase, o None si las licencias por cliente no están configuradas."""
+  try:
+    url = st.secrets.get("SUPABASE_URL")
+    llave = st.secrets.get("SUPABASE_SERVICE_KEY")
+  except Exception:
+    url = llave = None
+  url = url or os.environ.get("SUPABASE_URL")
+  llave = llave or os.environ.get("SUPABASE_SERVICE_KEY")
+  return (url, llave) if url and llave else None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _consultar_licencia(clave, sesion, url, llave):
+  """Valida contra Supabase. Si el servicio falla LANZA la excepción para no cachear el error;
+  la caché de 5 minutos también renueva el puesto de uso de la sesión."""
+  return licencias.validar_licencia(clave, sesion, url, llave)
+
+
+def validar_licencia_pro(clave):
+  """Devuelve (es_pro, mensaje_de_error). Falla cerrada: si no se puede verificar, no hay Pro."""
+  config = _config_licencias()
+  if config:
+    if "sesion_id" not in st.session_state:
+      st.session_state["sesion_id"] = uuid.uuid4().hex
+    try:
+      resultado = _consultar_licencia(clave, st.session_state["sesion_id"], *config)
+    except Exception:
+      return False, licencias.mensaje_de_rechazo("servicio_no_disponible")
+    if resultado.get("valida"):
+      return True, None
+    return False, licencias.mensaje_de_rechazo(resultado.get("motivo"))
+
+  clave_valida = _clave_pro_configurada()
+  if clave_valida and hmac.compare_digest(
+      clave.encode("utf-8"), str(clave_valida).encode("utf-8")
+  ):
+    return True, None
+  return False, "⚠️ Clave de licencia no válida."
+
+
 es_pro = False
 if tipo_plan == "Pro / Premium ⭐":
   clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
-  clave_valida = _clave_pro_configurada()
-  if not clave_valida:
+  if not _config_licencias() and not _clave_pro_configurada():
     st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
-  elif clave_pro and hmac.compare_digest(
-      clave_pro.encode("utf-8"), str(clave_valida).encode("utf-8")
-  ):
-    st.sidebar.success("✅ Licencia Pro Activa")
-    es_pro = True
   elif clave_pro:
-    st.sidebar.warning("⚠️ Clave de licencia no válida.")
+    es_pro, error_licencia = validar_licencia_pro(clave_pro)
+    if es_pro:
+      st.sidebar.success("✅ Licencia Pro Activa")
+    else:
+      st.sidebar.warning(error_licencia)
 
 st.sidebar.divider()
 st.sidebar.header("⚙️ Parámetros de Monedas")

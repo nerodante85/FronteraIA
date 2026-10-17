@@ -4,6 +4,7 @@ Las pruebas ejecutan la app con el arnés `AppTest` de Streamlit y NUNCA usan la
 red real: `requests.get` se reemplaza por una respuesta simulada de la TRM.
 """
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,9 @@ from streamlit.testing.v1 import AppTest
 
 # Permite probar otra copia de la app (por ejemplo, para pruebas de mutación).
 APP_PATH = Path(os.environ.get("APP_PATH") or Path(__file__).resolve().parent.parent / "app.py")
+
+# Para que las copias temporales de la app también encuentren `licencias.py`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 TRM_PRUEBA = 4000.0
 
@@ -40,6 +44,8 @@ def entorno_aislado(monkeypatch):
   """Sin red, sin caché compartida y sin clave Pro heredada del entorno."""
   st.cache_data.clear()
   monkeypatch.delenv("PRO_LICENSE_KEY", raising=False)
+  monkeypatch.delenv("SUPABASE_URL", raising=False)
+  monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
   monkeypatch.setattr(requests, "get", lambda *a, **k: respuesta_trm())
   yield
   st.cache_data.clear()

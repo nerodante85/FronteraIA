@@ -104,6 +104,8 @@ El repositorio incluye una configuración de **Dev Container** (`.devcontainer/`
 PRO_LICENSE_KEY = "una-clave-larga-y-unica"
 ```
 
+Para vender a varios clientes, la app admite licencias individuales con vencimiento, revocación y cobro con Wompi (opcional): ver [`docs/LICENCIAS.md`](docs/LICENCIAS.md).
+
 Mientras no esté definida, el plan Pro no se puede activar.
 
 **Valores en el código** (`app.py`):
