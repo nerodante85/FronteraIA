@@ -187,6 +187,12 @@ DATABASE_NANDINA = {
     },
 }
 
+# Partidas cuyo arancel/IVA ya fueron validados por un agente de aduanas.
+# Formato: "codigo": {"fuente": "norma o arancel consultado", "vigencia": "AAAA-MM-DD"}
+# Mientras una partida no esté aquí, la interfaz la marca como "pendiente".
+# Ver docs/validacion-nandina.csv.
+PARTIDAS_VALIDADAS = {}
+
 
 # ==================== GENERACIÓN DE PDF CORREGIDA ====================
 _REEMPLAZOS_PDF = {
@@ -281,7 +287,8 @@ def generar_pdf_cotizacion(datos):
       5,
       "Nota: Este documento es una estimacion de costos proyectados para la"
       " operacion aduanera y logistica en la frontera de Cucuta. No constituye"
-      " una liquidacion oficial de la DIAN.",
+      " una liquidacion oficial de la DIAN. Los porcentajes de arancel e IVA"
+      " son valores de referencia y deben confirmarse con la normativa vigente.",
   )
 
   # Retorna los bytes directamente usando el API actualizado de fpdf2
@@ -380,6 +387,18 @@ with col_left:
     )
     def_arancel = partida_info["arancel"]
     def_iva = partida_info["iva"]
+    validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
+    if validacion:
+      st.caption(
+          f"✅ Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
+          f" Vigencia: {validacion['vigencia']}"
+      )
+    else:
+      st.warning(
+          "Arancel e IVA de **referencia**, pendientes de validación por un"
+          " agente de aduanas. Confírmalos con la normativa vigente antes de"
+          " operar; puedes ajustarlos en los campos de la derecha."
+      )
 
   unidades = st.number_input(
       "Cantidad de Unidades", min_value=1, value=1000, step=1
