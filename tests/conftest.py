@@ -75,3 +75,30 @@ def metricas(at):
 
   texto = " ".join(m.value for m in at.markdown)
   return re.findall(r"metric-value[^>]*>\$ ([\d,\.]+)", texto)
+
+
+def cargar_funciones(*nombres):
+  """Carga funciones y constantes puras de app.py sin ejecutar la interfaz.
+
+  Ejecuta los imports del archivo y solo las definiciones pedidas por nombre.
+  """
+  import ast
+
+  fuente = APP_PATH.read_text(encoding="utf-8")
+  arbol = ast.parse(fuente)
+  pedidos = set(nombres)
+  nodos = []
+  for nodo in arbol.body:
+    if isinstance(nodo, (ast.Import, ast.ImportFrom)):
+      nodos.append(nodo)
+    elif isinstance(nodo, ast.FunctionDef) and nodo.name in pedidos and not nodo.decorator_list:
+      nodos.append(nodo)
+    elif isinstance(nodo, ast.Assign) and any(
+        isinstance(t, ast.Name) and t.id in pedidos for t in nodo.targets
+    ):
+      nodos.append(nodo)
+  espacio = {}
+  exec(compile(ast.Module(body=nodos, type_ignores=[]), str(APP_PATH), "exec"), espacio)
+  faltan = pedidos - set(espacio)
+  assert not faltan, f"No se encontraron en app.py: {faltan}"
+  return espacio

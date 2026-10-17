@@ -27,7 +27,7 @@ FronteraIQ es una aplicación web que calcula en segundos el costo real de una i
 - **Liquidación completa** de CIF (FOB + flete + seguro), arancel, IVA y gastos logísticos de frontera: agenciamiento SIA, bodegaje, transporte local y otros gastos.
 - **Indicadores clave**: costo total landed, costo unitario, impuestos DIAN y precio de venta sugerido según el margen deseado.
 - **Visualización**: gráfico de distribución de costos (CIF, tributos y gastos locales) y tabla de desglose de la liquidación.
-- **Exportación** a CSV, y a PDF de cotización en el plan Pro.
+- **Exportación trazable** a CSV, y a PDF de cotización en el plan Pro. Cada cotización lleva un **código** (`FIQ-AAAAMMDD-XXXXXX`, derivado de los datos de la operación y la fecha), la fecha de emisión, la TRM con su origen (oficial, de respaldo o ingresada a mano), los porcentajes de arancel e IVA aplicados, el estado de validación de esos porcentajes y el desglose de gastos, de modo que la cotización pueda reconstruirse y defenderse.
 - **Contacto directo por WhatsApp** con un mensaje prellenado con los datos de la operación.
 
 ## Planes: Gratuito y Pro

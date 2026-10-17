@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import io
 from datetime import datetime, timedelta, timezone
@@ -220,86 +221,151 @@ def _texto_pdf(texto):
   return texto.encode("latin-1", errors="replace").decode("latin-1")
 
 
-def generar_pdf_cotizacion(datos):
-  datos = {
-      **datos,
-      "producto": _texto_pdf(datos["producto"]),
-      "partida": _texto_pdf(datos["partida"]),
+CAMPOS_CODIGO = (
+    "producto", "partida", "unidades", "fob_usd", "flete_usd", "seguro_usd",
+    "trm", "pct_arancel", "pct_iva", "agenciamiento_cop", "bodegaje_cop",
+    "transporte_local_cop", "otros_gastos_cop", "pct_margen",
+)
+
+
+def codigo_cotizacion(datos, emision):
+  """Código de cotización determinístico: misma operación y mismo día, mismo código."""
+  base = "|".join(str(datos[campo]) for campo in CAMPOS_CODIGO)
+  huella = hashlib.sha256(base.encode("utf-8")).hexdigest()[:6].upper()
+  return f"FIQ-{emision:%Y%m%d}-{huella}"
+
+
+def origen_trm(trm, trm_oficial, trm_fecha, es_oficial):
+  """Explica de dónde sale la TRM aplicada en la cotización."""
+  if abs(trm - trm_oficial) > 1e-9:
+    return "Ingresada manualmente por el usuario"
+  if es_oficial:
+    return f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)"
+  return "Valor de respaldo, NO es la TRM oficial"
+
+
+def estado_aranceles(personalizada, ajustados, validacion):
+  """Estado de los porcentajes de arancel e IVA usados en la cotización."""
+  if personalizada:
+    return "Ingresados por el usuario (partida personalizada)"
+  if ajustados:
+    return "Ajustados por el usuario respecto a la tabla de referencia"
+  if validacion:
+    return f"Validados. Fuente: {validacion['fuente']}. Vigencia: {validacion['vigencia']}"
+  return "Valores de referencia, pendientes de validacion"
+
+
+def lineas_liquidacion(d):
+  """Filas (concepto, valor, destacada) de la liquidación, para el PDF."""
+  usd = lambda v: f"${v:,.2f} USD"
+  cop = lambda v: f"${v:,.0f} COP"
+  return [
+      ("Valor FOB", usd(d["fob_usd"]), False),
+      ("Flete internacional", usd(d["flete_usd"]), False),
+      ("Seguro internacional", usd(d["seguro_usd"]), False),
+      ("Valor CIF", usd(d["cif_usd"]), False),
+      ("Valor CIF en COP", cop(d["cif_cop"]), False),
+      (f"Arancel DIAN ({d['pct_arancel']:g} %)", cop(d["arancel_cop"]), False),
+      ("Base gravable del IVA (CIF + arancel)", cop(d["cif_cop"] + d["arancel_cop"]), False),
+      (f"IVA DIAN ({d['pct_iva']:g} %)", cop(d["iva_cop"]), False),
+      ("Total impuestos DIAN", cop(d["total_tributos_cop"]), False),
+      ("Agenciamiento SIA", cop(d["agenciamiento_cop"]), False),
+      ("Bodegaje / depósito", cop(d["bodegaje_cop"]), False),
+      ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
+      ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
+      ("Total gastos logísticos Cúcuta", cop(d["gastos_locales_cop"]), False),
+      ("COSTO TOTAL LANDED", cop(d["costo_total_landed_cop"]), True),
+      ("COSTO LANDED UNITARIO", f"${d['costo_unitario_cop']:,.2f} COP", True),
+      (f"Margen deseado ({d['pct_margen']:g} % sobre el precio)", "", False),
+      ("PRECIO DE VENTA SUGERIDO (UNITARIO)", f"${d['precio_sugerido_unitario_cop']:,.2f} COP", True),
+  ]
+
+
+def fila_csv(d):
+  """Una fila de CSV con todo lo necesario para reconstruir la cotización."""
+  return {
+      "Codigo cotizacion": d["codigo"],
+      "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
+      "Producto": d["producto"],
+      "Partida": d["partida"],
+      "Unidades": d["unidades"],
+      "FOB USD": d["fob_usd"],
+      "Flete USD": d["flete_usd"],
+      "Seguro USD": d["seguro_usd"],
+      "CIF USD": d["cif_usd"],
+      "TRM COP/USD": d["trm"],
+      "Origen TRM": d["origen_trm"],
+      "Arancel %": d["pct_arancel"],
+      "IVA %": d["pct_iva"],
+      "Estado aranceles": d["estado_aranceles"],
+      "CIF COP": d["cif_cop"],
+      "Arancel COP": d["arancel_cop"],
+      "IVA COP": d["iva_cop"],
+      "Agenciamiento COP": d["agenciamiento_cop"],
+      "Bodegaje COP": d["bodegaje_cop"],
+      "Transporte local COP": d["transporte_local_cop"],
+      "Otros gastos COP": d["otros_gastos_cop"],
+      "Costo landed COP": d["costo_total_landed_cop"],
+      "Costo unitario COP": d["costo_unitario_cop"],
+      "Margen %": d["pct_margen"],
+      "Precio sugerido unitario COP": d["precio_sugerido_unitario_cop"],
   }
+
+
+def generar_pdf_cotizacion(datos):
   pdf = FPDF()
   pdf.add_page()
   pdf.set_font("Helvetica", "B", 16)
-
   pdf.cell(
-      0,
-      10,
-      "FronteraIQ - Reporte de Cotizacion Aduanera",
-      new_x="LMARGIN",
-      new_y="NEXT",
-      align="C",
+      0, 10, "FronteraIQ - Reporte de Cotizacion Aduanera",
+      new_x="LMARGIN", new_y="NEXT", align="C",
   )
   pdf.set_font("Helvetica", "I", 10)
   pdf.cell(
-      0,
-      8,
-      "Liquidacion de Costos Landed y Tributos DIAN (Cucuta - Frontera)",
-      new_x="LMARGIN",
-      new_y="NEXT",
-      align="C",
+      0, 8, "Liquidacion de Costos Landed y Tributos DIAN (Cucuta - Frontera)",
+      new_x="LMARGIN", new_y="NEXT", align="C",
   )
-  pdf.ln(5)
+  pdf.ln(3)
 
-  pdf.set_font("Helvetica", "B", 11)
-  pdf.cell(0, 7, f"Producto: {datos['producto']}", new_x="LMARGIN", new_y="NEXT")
-  pdf.set_font("Helvetica", "", 10)
-  pdf.cell(
-      0,
-      6,
-      f"Partida NANDINA: {datos['partida']} | Cantidad: {datos['unidades']:,}"
-      " uds",
-      new_x="LMARGIN",
-      new_y="NEXT",
-  )
-  pdf.cell(
-      0,
-      6,
-      f"TRM Aplicada: ${datos['trm']:,.2f} COP/USD",
-      new_x="LMARGIN",
-      new_y="NEXT",
-  )
-  pdf.ln(5)
+  encabezado = [
+      ("Codigo de cotizacion", datos["codigo"]),
+      ("Fecha de emision", datos["emision"].strftime("%Y-%m-%d %H:%M") + " (hora de Colombia)"),
+      ("Producto", datos["producto"]),
+      ("Partida NANDINA", datos["partida"]),
+      ("Cantidad", f"{datos['unidades']:,} uds"),
+      ("TRM aplicada", f"${datos['trm']:,.2f} COP/USD"),
+      ("Origen de la TRM", datos["origen_trm"]),
+      ("Estado de arancel e IVA", datos["estado_aranceles"]),
+  ]
+  for etiqueta, valor in encabezado:
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(48, 6, _texto_pdf(etiqueta + ":"))
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, _texto_pdf(valor), new_x="LMARGIN", new_y="NEXT")
+  pdf.ln(4)
 
   pdf.set_font("Helvetica", "B", 10)
   pdf.cell(120, 7, "Concepto", border=1)
-  pdf.cell(70, 7, "Valor (COP)", border=1, new_x="LMARGIN", new_y="NEXT", align="R")
+  pdf.cell(70, 7, "Valor", border=1, new_x="LMARGIN", new_y="NEXT", align="R")
 
-  pdf.set_font("Helvetica", "", 9)
-  items = [
-      ("Valor CIF (USD)", f"${datos['cif_usd']:,.2f} USD"),
-      ("Valor CIF (COP)", f"${datos['cif_cop']:,.0f} COP"),
-      ("Arancel DIAN", f"${datos['arancel_cop']:,.0f} COP"),
-      ("IVA DIAN", f"${datos['iva_cop']:,.0f} COP"),
-      ("Total Impuestos DIAN", f"${datos['total_tributos_cop']:,.0f} COP"),
-      ("Gastos Logísticos Cúcuta", f"${datos['gastos_locales_cop']:,.0f} COP"),
-      ("COSTO TOTAL LANDED", f"${datos['costo_total_landed_cop']:,.0f} COP"),
-      ("COSTO LANDED UNITARIO", f"${datos['costo_unitario_cop']:,.2f} COP"),
-  ]
+  for concepto, valor, destacada in lineas_liquidacion(datos):
+    pdf.set_font("Helvetica", "B" if destacada else "", 9)
+    pdf.cell(120, 6, _texto_pdf(concepto), border=1)
+    pdf.cell(70, 6, _texto_pdf(valor), border=1, new_x="LMARGIN", new_y="NEXT", align="R")
 
-  for concepto, valor in items:
-    pdf.cell(120, 6, concepto, border=1)
-    pdf.cell(
-        70, 6, valor, border=1, new_x="LMARGIN", new_y="NEXT", align="R"
-    )
-
-  pdf.ln(8)
-  pdf.set_font("Helvetica", "I", 9)
+  pdf.ln(6)
+  pdf.set_font("Helvetica", "I", 8)
   pdf.multi_cell(
       0,
-      5,
-      "Nota: Este documento es una estimacion de costos proyectados para la"
+      4.5,
+      "Notas: Este documento es una estimacion de costos proyectados para la"
       " operacion aduanera y logistica en la frontera de Cucuta. No constituye"
       " una liquidacion oficial de la DIAN. Los porcentajes de arancel e IVA"
-      " son valores de referencia y deben confirmarse con la normativa vigente.",
+      " deben confirmarse con la normativa vigente. El precio sugerido se calcula"
+      " como costo unitario / (1 - margen) y no incluye el IVA de venta. El codigo"
+      " de cotizacion se deriva de los datos de la operacion y de la fecha: dos"
+      " cotizaciones con los mismos datos el mismo dia tienen el mismo codigo.",
+      new_x="LMARGIN", new_y="NEXT",
   )
 
   # Retorna los bytes directamente usando el API actualizado de fpdf2
@@ -498,6 +564,48 @@ costo_total_usdt = (
 )
 
 
+# ==================== DATOS DE LA COTIZACIÓN (TRAZABILIDAD) ====================
+es_personalizada = producto_sel == "Personalizado / Otra partida"
+porcentajes_ajustados = (not es_personalizada) and (
+    pct_arancel != def_arancel or pct_iva != def_iva
+)
+emision = datetime.now(ZONA_COLOMBIA)
+
+datos_cotizacion = {
+    "producto": producto,
+    "partida": partida_arancelaria,
+    "unidades": unidades,
+    "fob_usd": fob_usd,
+    "flete_usd": flete_usd,
+    "seguro_usd": seguro_usd,
+    "cif_usd": cif_usd,
+    "cif_cop": cif_cop,
+    "trm": trm,
+    "pct_arancel": pct_arancel,
+    "pct_iva": pct_iva,
+    "arancel_cop": arancel_cop,
+    "iva_cop": iva_cop,
+    "total_tributos_cop": total_tributos_cop,
+    "agenciamiento_cop": agenciamiento_cop,
+    "bodegaje_cop": bodegaje_cop,
+    "transporte_local_cop": transporte_local_cop,
+    "otros_gastos_cop": otros_gastos_cop,
+    "gastos_locales_cop": total_gastos_locales_cop,
+    "costo_total_landed_cop": costo_total_landed_cop,
+    "costo_unitario_cop": costo_unitario_cop,
+    "pct_margen": pct_margen,
+    "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+    "emision": emision,
+    "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
+    "estado_aranceles": estado_aranceles(
+        es_personalizada,
+        porcentajes_ajustados,
+        None if es_personalizada else PARTIDAS_VALIDADAS.get(partida_info["codigo"]),
+    ),
+}
+datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
+
+
 # ==================== PRESENTACIÓN DE RESULTADOS ====================
 st.divider()
 st.subheader("📈 Resumen de Resultados")
@@ -604,6 +712,10 @@ with col_table:
 # ==================== ACCIONES Y REPORTES ====================
 st.divider()
 st.subheader("📲 Acciones Directas")
+st.caption(
+    f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
+    f" {datos_cotizacion['origen_trm']}"
+)
 
 mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente operación en FronteraIQ:
 
@@ -630,22 +742,8 @@ with c1:
 
 with c2:
   if es_pro:
-    datos_pdf = {
-        "producto": producto,
-        "partida": partida_arancelaria,
-        "unidades": unidades,
-        "trm": trm,
-        "cif_usd": cif_usd,
-        "cif_cop": cif_cop,
-        "arancel_cop": arancel_cop,
-        "iva_cop": iva_cop,
-        "total_tributos_cop": total_tributos_cop,
-        "gastos_locales_cop": total_gastos_locales_cop,
-        "costo_total_landed_cop": costo_total_landed_cop,
-        "costo_unitario_cop": costo_unitario_cop,
-    }
     try:
-      pdf_bytes = generar_pdf_cotizacion(datos_pdf)
+      pdf_bytes = generar_pdf_cotizacion(datos_cotizacion)
     except Exception:
       pdf_bytes = None
       st.error("No se pudo generar el PDF. Revisa el nombre del producto.")
@@ -654,7 +752,7 @@ with c2:
       st.download_button(
           label="📄 Descargar Cotización PDF (Pro)",
           data=pdf_bytes,
-          file_name=f"cotizacion_{nombre_seguro or 'producto'}.pdf",
+          file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
           mime="application/pdf",
           width="stretch",
       )
@@ -666,18 +764,12 @@ with c2:
     )
 
 with c3:
-  df_export = pd.DataFrame([{
-      "Producto": producto,
-      "Partida": partida_arancelaria,
-      "Unidades": unidades,
-      "Costo Landed COP": costo_total_landed_cop,
-      "Costo Unitario COP": costo_unitario_cop,
-  }])
-  csv = df_export.to_csv(index=False).encode("utf-8")
+  df_export = pd.DataFrame([fila_csv(datos_cotizacion)])
+  csv = df_export.to_csv(index=False).encode("utf-8-sig")  # BOM: Excel lee bien las tildes
   st.download_button(
       label="📥 Exportar a CSV",
       data=csv,
-      file_name="cotizacion.csv",
+      file_name=f"{datos_cotizacion['codigo']}.csv",
       mime="text/csv",
       width="stretch",
   )
