@@ -46,6 +46,8 @@ def entorno_aislado(monkeypatch):
   monkeypatch.delenv("PRO_LICENSE_KEY", raising=False)
   monkeypatch.delenv("SUPABASE_URL", raising=False)
   monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
+  # Las pruebas de la calculadora arrancan en esa página (la landing es la página por defecto).
+  monkeypatch.setenv("FIQ_PAGINA_INICIAL", "calculadora")
   monkeypatch.setattr(requests, "get", lambda *a, **k: respuesta_trm())
   yield
   st.cache_data.clear()

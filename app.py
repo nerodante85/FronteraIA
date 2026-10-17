@@ -478,10 +478,6 @@ def generar_pdf_cotizacion(datos):
   return bytes(pdf.output())
 
 
-# ==================== BARRA LATERAL (SIDEBAR) ====================
-titulo("acceso", "Acceso de Usuario", 2, st.sidebar)
-tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"])
-
 def _clave_pro_configurada():
   """Lee la clave Pro desde st.secrets o la variable de entorno PRO_LICENSE_KEY."""
   try:
@@ -532,389 +528,420 @@ def validar_licencia_pro(clave):
   return False, "Clave de licencia no válida."
 
 
-es_pro = False
-if tipo_plan == "Pro / Premium":
-  clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
-  if not _config_licencias() and not _clave_pro_configurada():
-    st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
-  elif clave_pro:
-    es_pro, error_licencia = validar_licencia_pro(clave_pro)
-    if es_pro:
-      st.sidebar.success("Licencia Pro activa")
-    else:
-      st.sidebar.warning(error_licencia)
 
-st.sidebar.divider()
-titulo("parametros", "Parámetros de Monedas", 2, st.sidebar)
-trm = st.sidebar.number_input(
-    "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
-)
-if trm_es_oficial:
-  st.sidebar.caption(f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)")
-else:
-  st.sidebar.warning(
-      "No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
-      f" ({num(TRM_RESPALDO)} COP/USD), que NO es la TRM vigente. Ingresa la"
-      " TRM actual manualmente."
+
+def calculadora():
+  """Página de la calculadora de costo landed."""
+  st.sidebar.page_link(_PAGINAS["inicio"], label="Volver al inicio", icon=":material/arrow_back:")
+  # ==================== BARRA LATERAL (SIDEBAR) ====================
+  titulo("acceso", "Acceso de Usuario", 2, st.sidebar)
+  tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"])
+
+  es_pro = False
+  if tipo_plan == "Pro / Premium":
+    clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
+    if not _config_licencias() and not _clave_pro_configurada():
+      st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
+    elif clave_pro:
+      es_pro, error_licencia = validar_licencia_pro(clave_pro)
+      if es_pro:
+        st.sidebar.success("Licencia Pro activa")
+      else:
+        st.sidebar.warning(error_licencia)
+
+  st.sidebar.divider()
+  titulo("parametros", "Parámetros de Monedas", 2, st.sidebar)
+  trm = st.sidebar.number_input(
+      "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
   )
-
-if es_pro:
-  titulo("cambio", "Tasa Fronteriza (Multi-moneda)", 3, st.sidebar)
-  tasa_ves_cop = st.sidebar.number_input(
-      "Tasa COP / Bolívares (VES)", value=0.08, step=0.01, format="%.4f"
-  )
-  tasa_usdt_cop = st.sidebar.number_input(
-      "Tasa COP / USDT (Cripto)", value=4050.0, step=10.0
-  )
-else:
-  tasa_ves_cop = 0.08
-  tasa_usdt_cop = 4050.0
-
-
-# ==================== ENCABEZADO PRINCIPAL ====================
-st.markdown(
-    f"""
-    <div class="hero-header">
-        <div class="hero-title">{icono('contenedor', 34)} FronteraIQ Pro</div>
-        <div class="hero-subtitle">Plataforma de Inteligencia Aduanera y Cálculo de Costos Landed en Cúcuta</div>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-
-# ==================== FORMULARIO ====================
-col_left, col_right = st.columns([1, 1], gap="large")
-
-with col_left:
-  titulo("mercancia", "Mercancía y Partida NANDINA")
-
-  producto_sel = st.selectbox(
-      "Seleccionar o buscar tipo de producto",
-      list(DATABASE_NANDINA.keys()),
-  )
-  partida_info = DATABASE_NANDINA[producto_sel]
-
-  if producto_sel == "Personalizado / Otra partida":
-    producto = st.text_input("Nombre / Referencia", value="Mercancía General")
-    partida_arancelaria = st.text_input(
-        "Subpartida Arancelaria", value="0000.00.00.00"
-    )
-    def_arancel = 10.0
-    def_iva = 19.0
+  if trm_es_oficial:
+    st.sidebar.caption(f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)")
   else:
-    producto = producto_sel
-    partida_arancelaria = st.text_input(
-        "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
-    )
-    def_arancel = partida_info["arancel"]
-    def_iva = partida_info["iva"]
-    validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
-    if validacion:
-      st.caption(
-          f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
-          f" Vigencia: {validacion['vigencia']}"
-      )
-    else:
-      st.warning(
-          "Arancel e IVA de **referencia**, pendientes de validación por un"
-          " agente de aduanas. Confírmalos con la normativa vigente antes de"
-          " operar; puedes ajustarlos en los campos de la derecha."
-      )
-
-  unidades = st.number_input(
-      "Cantidad de Unidades", min_value=1, value=1000, step=1
-  )
-
-  titulo("valores", "Valores de la Carga (USD)", 4)
-  fob_usd = st.number_input(
-      "Valor FOB Total (USD)", min_value=0.0, value=10000.0, step=100.0
-  )
-  flete_usd = st.number_input(
-      "Flete Internacional (USD)", min_value=0.0, value=1200.0, step=50.0
-  )
-  seguro_usd = st.number_input(
-      "Seguro Internacional (USD)", min_value=0.0, value=150.0, step=10.0
-  )
-
-with col_right:
-  titulo("tributos", "Impuestos y Gastos Locales")
-
-  col_imp1, col_imp2 = st.columns(2)
-  with col_imp1:
-    pct_arancel = st.number_input(
-        "Arancel (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=def_arancel,
-        step=0.5,
-    )
-  with col_imp2:
-    pct_iva = st.number_input(
-        "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
+    st.sidebar.warning(
+        "No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
+        f" ({num(TRM_RESPALDO)} COP/USD), que NO es la TRM vigente. Ingresa la"
+        " TRM actual manualmente."
     )
 
-  titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
-  agenciamiento_cop = st.number_input(
-      "Agenciamiento SIA (COP)", min_value=0.0, value=450000.0, step=50000.0
-  )
-  bodegaje_cop = st.number_input(
-      "Bodegaje / Depósito (COP)", min_value=0.0, value=300000.0, step=25000.0
-  )
-  transporte_local_cop = st.number_input(
-      "Transporte Terrestre Local (COP)",
-      min_value=0.0,
-      value=800000.0,
-      step=50000.0,
-  )
-  otros_gastos_cop = st.number_input(
-      "Otros Gastos / Inspecciones (COP)",
-      min_value=0.0,
-      value=200000.0,
-      step=25000.0,
-  )
-
-  pct_margen = st.number_input(
-      "Margen Deseado (%)",
-      min_value=0.0,
-      max_value=99.0,
-      value=30.0,
-      step=1.0,
-  )
+  if es_pro:
+    titulo("cambio", "Tasa Fronteriza (Multi-moneda)", 3, st.sidebar)
+    tasa_ves_cop = st.sidebar.number_input(
+        "Tasa COP / Bolívares (VES)", value=0.08, step=0.01, format="%.4f"
+    )
+    tasa_usdt_cop = st.sidebar.number_input(
+        "Tasa COP / USDT (Cripto)", value=4050.0, step=10.0
+    )
+  else:
+    tasa_ves_cop = 0.08
+    tasa_usdt_cop = 4050.0
 
 
-# ==================== CÁLCULOS ====================
-cif_usd = fob_usd + flete_usd + seguro_usd
-cif_cop = cif_usd * trm
-
-arancel_cop = cif_cop * (pct_arancel / 100)
-base_iva_cop = cif_cop + arancel_cop
-iva_cop = base_iva_cop * (pct_iva / 100)
-total_tributos_cop = arancel_cop + iva_cop
-
-total_gastos_locales_cop = (
-    agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
-)
-costo_total_landed_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
-costo_unitario_cop = costo_total_landed_cop / unidades if unidades > 0 else 0
-precio_sugerido_unitario_cop = (
-    costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
-)
-
-costo_total_ves = (
-    costo_total_landed_cop / tasa_ves_cop if tasa_ves_cop > 0 else 0
-)
-costo_total_usdt = (
-    costo_total_landed_cop / tasa_usdt_cop if tasa_usdt_cop > 0 else 0
-)
-
-
-# ==================== DATOS DE LA COTIZACIÓN (TRAZABILIDAD) ====================
-es_personalizada = producto_sel == "Personalizado / Otra partida"
-porcentajes_ajustados = (not es_personalizada) and (
-    pct_arancel != def_arancel or pct_iva != def_iva
-)
-emision = datetime.now(ZONA_COLOMBIA)
-
-datos_cotizacion = {
-    "producto": producto,
-    "partida": partida_arancelaria,
-    "unidades": unidades,
-    "fob_usd": fob_usd,
-    "flete_usd": flete_usd,
-    "seguro_usd": seguro_usd,
-    "cif_usd": cif_usd,
-    "cif_cop": cif_cop,
-    "trm": trm,
-    "pct_arancel": pct_arancel,
-    "pct_iva": pct_iva,
-    "arancel_cop": arancel_cop,
-    "iva_cop": iva_cop,
-    "total_tributos_cop": total_tributos_cop,
-    "agenciamiento_cop": agenciamiento_cop,
-    "bodegaje_cop": bodegaje_cop,
-    "transporte_local_cop": transporte_local_cop,
-    "otros_gastos_cop": otros_gastos_cop,
-    "gastos_locales_cop": total_gastos_locales_cop,
-    "costo_total_landed_cop": costo_total_landed_cop,
-    "costo_unitario_cop": costo_unitario_cop,
-    "pct_margen": pct_margen,
-    "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
-    "emision": emision,
-    "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
-    "estado_aranceles": estado_aranceles(
-        es_personalizada,
-        porcentajes_ajustados,
-        None if es_personalizada else PARTIDAS_VALIDADAS.get(partida_info["codigo"]),
-    ),
-}
-datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
-
-
-# ==================== PRESENTACIÓN DE RESULTADOS ====================
-st.divider()
-titulo("resultados", "Resumen de Resultados")
-
-m1, m2, m3, m4 = st.columns(4)
-
-m1.markdown(
-    f"""
-    <div class="metric-card is-main">
-        <div class="metric-label">Costo Total Landed</div>
-        <div class="metric-value">$ {num(costo_total_landed_cop)}</div>
-        <div class="metric-subtext">COP Puesto en Cúcuta</div>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-m2.markdown(
-    f"""
-    <div class="metric-card">
-        <div class="metric-label">Costo Unitario</div>
-        <div class="metric-value">$ {num(costo_unitario_cop, 2)}</div>
-        <div class="metric-subtext">Por unidad importada</div>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-m3.markdown(
-    f"""
-    <div class="metric-card">
-        <div class="metric-label">Impuestos DIAN</div>
-        <div class="metric-value">$ {num(total_tributos_cop)}</div>
-        <div class="metric-subtext">Arancel + IVA</div>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-m4.markdown(
-    f"""
-    <div class="metric-card">
-        <div class="metric-label">Precio Venta Sugerido</div>
-        <div class="metric-value">$ {num(precio_sugerido_unitario_cop, 2)}</div>
-        <div class="metric-subtext">Margen {pct_margen}%</div>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-if es_pro:
-  st.info(
-      f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
-      f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):**"
-      f" `{num(costo_total_ves, 2)} VES`"
-  )
-
-col_chart, col_table = st.columns([1, 1], gap="large")
-
-with col_chart:
-  st.markdown("#### Distribución de Costos")
-  df_chart = pd.DataFrame({
-      "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
-      "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
-  })
-  fig = px.pie(
-      df_chart,
-      values="Monto_COP",
-      names="Concepto",
-      hole=0.4,
-      color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
-  )
-  st.plotly_chart(fig, width="stretch")
-
-with col_table:
-  st.markdown("#### Desglose de Liquidación")
-  liquidacion_data = {
-      "Concepto": [
-          "Valor CIF (USD)",
-          "Valor CIF (COP)",
-          "Arancel DIAN (COP)",
-          "IVA DIAN (COP)",
-          "Total Impuestos",
-          "Gastos Cúcuta",
-          "COSTO TOTAL LANDED",
-      ],
-      "Monto": [
-          f"$ {num(cif_usd, 2)} USD",
-          f"$ {num(cif_cop)} COP",
-          f"$ {num(arancel_cop)} COP",
-          f"$ {num(iva_cop)} COP",
-          f"$ {num(total_tributos_cop)} COP",
-          f"$ {num(total_gastos_locales_cop)} COP",
-          f"$ {num(costo_total_landed_cop)} COP",
-      ],
-  }
-  st.dataframe(
-      pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
-  )
-
-
-# ==================== ACCIONES Y REPORTES ====================
-st.divider()
-titulo("acciones", "Acciones Directas")
-st.caption(
-    f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
-    f" {datos_cotizacion['origen_trm']}"
-)
-
-mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente operación en FronteraIQ:
-
-📌 *Producto:* {producto}
-🔢 *Partida:* {partida_arancelaria}
-📦 *Cantidad:* {num(unidades)} uds
-💵 *Valor CIF:* ${num(cif_usd, 2)} USD
-🏛️ *Tributos DIAN:* ${num(total_tributos_cop)} COP
-🚚 *Costo Landed Total:* ${num(costo_total_landed_cop)} COP"""
-
-mensaje_encoded = urllib.parse.quote(mensaje_whatsapp)
-url_whatsapp = (
-    f"https://api.whatsapp.com/send?phone={TELEFONO_WHATSAPP}&text={mensaje_encoded}"
-)
-
-c1, c2, c3 = st.columns([1, 1, 1])
-
-with c1:
+  # ==================== ENCABEZADO PRINCIPAL ====================
   st.markdown(
-      f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">'
-      f"{icono('acciones', 20)}&nbsp; Contactar por WhatsApp</a>",
+      f"""
+      <div class="hero-header">
+          <div class="hero-title">{icono('contenedor', 34)} FronteraIQ Pro</div>
+          <div class="hero-subtitle">Plataforma de Inteligencia Aduanera y Cálculo de Costos Landed en Cúcuta</div>
+      </div>
+  """,
       unsafe_allow_html=True,
   )
 
-with c2:
+
+  # ==================== FORMULARIO ====================
+  col_left, col_right = st.columns([1, 1], gap="large")
+
+  with col_left:
+    titulo("mercancia", "Mercancía y Partida NANDINA")
+
+    producto_sel = st.selectbox(
+        "Seleccionar o buscar tipo de producto",
+        list(DATABASE_NANDINA.keys()),
+    )
+    partida_info = DATABASE_NANDINA[producto_sel]
+
+    if producto_sel == "Personalizado / Otra partida":
+      producto = st.text_input("Nombre / Referencia", value="Mercancía General")
+      partida_arancelaria = st.text_input(
+          "Subpartida Arancelaria", value="0000.00.00.00"
+      )
+      def_arancel = 10.0
+      def_iva = 19.0
+    else:
+      producto = producto_sel
+      partida_arancelaria = st.text_input(
+          "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
+      )
+      def_arancel = partida_info["arancel"]
+      def_iva = partida_info["iva"]
+      validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
+      if validacion:
+        st.caption(
+            f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
+            f" Vigencia: {validacion['vigencia']}"
+        )
+      else:
+        st.warning(
+            "Arancel e IVA de **referencia**, pendientes de validación por un"
+            " agente de aduanas. Confírmalos con la normativa vigente antes de"
+            " operar; puedes ajustarlos en los campos de la derecha."
+        )
+
+    unidades = st.number_input(
+        "Cantidad de Unidades", min_value=1, value=1000, step=1
+    )
+
+    titulo("valores", "Valores de la Carga (USD)", 4)
+    fob_usd = st.number_input(
+        "Valor FOB Total (USD)", min_value=0.0, value=10000.0, step=100.0
+    )
+    flete_usd = st.number_input(
+        "Flete Internacional (USD)", min_value=0.0, value=1200.0, step=50.0
+    )
+    seguro_usd = st.number_input(
+        "Seguro Internacional (USD)", min_value=0.0, value=150.0, step=10.0
+    )
+
+  with col_right:
+    titulo("tributos", "Impuestos y Gastos Locales")
+
+    col_imp1, col_imp2 = st.columns(2)
+    with col_imp1:
+      pct_arancel = st.number_input(
+          "Arancel (%)",
+          min_value=0.0,
+          max_value=100.0,
+          value=def_arancel,
+          step=0.5,
+      )
+    with col_imp2:
+      pct_iva = st.number_input(
+          "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
+      )
+
+    titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
+    agenciamiento_cop = st.number_input(
+        "Agenciamiento SIA (COP)", min_value=0.0, value=450000.0, step=50000.0
+    )
+    bodegaje_cop = st.number_input(
+        "Bodegaje / Depósito (COP)", min_value=0.0, value=300000.0, step=25000.0
+    )
+    transporte_local_cop = st.number_input(
+        "Transporte Terrestre Local (COP)",
+        min_value=0.0,
+        value=800000.0,
+        step=50000.0,
+    )
+    otros_gastos_cop = st.number_input(
+        "Otros Gastos / Inspecciones (COP)",
+        min_value=0.0,
+        value=200000.0,
+        step=25000.0,
+    )
+
+    pct_margen = st.number_input(
+        "Margen Deseado (%)",
+        min_value=0.0,
+        max_value=99.0,
+        value=30.0,
+        step=1.0,
+    )
+
+
+  # ==================== CÁLCULOS ====================
+  cif_usd = fob_usd + flete_usd + seguro_usd
+  cif_cop = cif_usd * trm
+
+  arancel_cop = cif_cop * (pct_arancel / 100)
+  base_iva_cop = cif_cop + arancel_cop
+  iva_cop = base_iva_cop * (pct_iva / 100)
+  total_tributos_cop = arancel_cop + iva_cop
+
+  total_gastos_locales_cop = (
+      agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
+  )
+  costo_total_landed_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+  costo_unitario_cop = costo_total_landed_cop / unidades if unidades > 0 else 0
+  precio_sugerido_unitario_cop = (
+      costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
+  )
+
+  costo_total_ves = (
+      costo_total_landed_cop / tasa_ves_cop if tasa_ves_cop > 0 else 0
+  )
+  costo_total_usdt = (
+      costo_total_landed_cop / tasa_usdt_cop if tasa_usdt_cop > 0 else 0
+  )
+
+
+  # ==================== DATOS DE LA COTIZACIÓN (TRAZABILIDAD) ====================
+  es_personalizada = producto_sel == "Personalizado / Otra partida"
+  porcentajes_ajustados = (not es_personalizada) and (
+      pct_arancel != def_arancel or pct_iva != def_iva
+  )
+  emision = datetime.now(ZONA_COLOMBIA)
+
+  datos_cotizacion = {
+      "producto": producto,
+      "partida": partida_arancelaria,
+      "unidades": unidades,
+      "fob_usd": fob_usd,
+      "flete_usd": flete_usd,
+      "seguro_usd": seguro_usd,
+      "cif_usd": cif_usd,
+      "cif_cop": cif_cop,
+      "trm": trm,
+      "pct_arancel": pct_arancel,
+      "pct_iva": pct_iva,
+      "arancel_cop": arancel_cop,
+      "iva_cop": iva_cop,
+      "total_tributos_cop": total_tributos_cop,
+      "agenciamiento_cop": agenciamiento_cop,
+      "bodegaje_cop": bodegaje_cop,
+      "transporte_local_cop": transporte_local_cop,
+      "otros_gastos_cop": otros_gastos_cop,
+      "gastos_locales_cop": total_gastos_locales_cop,
+      "costo_total_landed_cop": costo_total_landed_cop,
+      "costo_unitario_cop": costo_unitario_cop,
+      "pct_margen": pct_margen,
+      "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "emision": emision,
+      "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
+      "estado_aranceles": estado_aranceles(
+          es_personalizada,
+          porcentajes_ajustados,
+          None if es_personalizada else PARTIDAS_VALIDADAS.get(partida_info["codigo"]),
+      ),
+  }
+  datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
+
+
+  # ==================== PRESENTACIÓN DE RESULTADOS ====================
+  st.divider()
+  titulo("resultados", "Resumen de Resultados")
+
+  m1, m2, m3, m4 = st.columns(4)
+
+  m1.markdown(
+      f"""
+      <div class="metric-card is-main">
+          <div class="metric-label">Costo Total Landed</div>
+          <div class="metric-value">$ {num(costo_total_landed_cop)}</div>
+          <div class="metric-subtext">COP Puesto en Cúcuta</div>
+      </div>
+  """,
+      unsafe_allow_html=True,
+  )
+
+  m2.markdown(
+      f"""
+      <div class="metric-card">
+          <div class="metric-label">Costo Unitario</div>
+          <div class="metric-value">$ {num(costo_unitario_cop, 2)}</div>
+          <div class="metric-subtext">Por unidad importada</div>
+      </div>
+  """,
+      unsafe_allow_html=True,
+  )
+
+  m3.markdown(
+      f"""
+      <div class="metric-card">
+          <div class="metric-label">Impuestos DIAN</div>
+          <div class="metric-value">$ {num(total_tributos_cop)}</div>
+          <div class="metric-subtext">Arancel + IVA</div>
+      </div>
+  """,
+      unsafe_allow_html=True,
+  )
+
+  m4.markdown(
+      f"""
+      <div class="metric-card">
+          <div class="metric-label">Precio Venta Sugerido</div>
+          <div class="metric-value">$ {num(precio_sugerido_unitario_cop, 2)}</div>
+          <div class="metric-subtext">Margen {pct_margen}%</div>
+      </div>
+  """,
+      unsafe_allow_html=True,
+  )
+
+  st.markdown("<br>", unsafe_allow_html=True)
+
   if es_pro:
-    try:
-      pdf_bytes = generar_pdf_cotizacion(datos_cotizacion)
-    except Exception:
-      pdf_bytes = None
-      st.error("No se pudo generar el PDF. Revisa el nombre del producto.")
-    if pdf_bytes:
-      nombre_seguro = re.sub(r"[^A-Za-z0-9_-]+", "_", producto).strip("_")
-      st.download_button(
-          label="Descargar Cotización PDF (Pro)",
-          data=pdf_bytes,
-          file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
-          mime="application/pdf",
+    st.info(
+        f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
+        f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):**"
+        f" `{num(costo_total_ves, 2)} VES`"
+    )
+
+  col_chart, col_table = st.columns([1, 1], gap="large")
+
+  with col_chart:
+    st.markdown("#### Distribución de Costos")
+    df_chart = pd.DataFrame({
+        "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
+        "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
+    })
+    fig = px.pie(
+        df_chart,
+        values="Monto_COP",
+        names="Concepto",
+        hole=0.4,
+        color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
+    )
+    st.plotly_chart(fig, width="stretch")
+
+  with col_table:
+    st.markdown("#### Desglose de Liquidación")
+    liquidacion_data = {
+        "Concepto": [
+            "Valor CIF (USD)",
+            "Valor CIF (COP)",
+            "Arancel DIAN (COP)",
+            "IVA DIAN (COP)",
+            "Total Impuestos",
+            "Gastos Cúcuta",
+            "COSTO TOTAL LANDED",
+        ],
+        "Monto": [
+            f"$ {num(cif_usd, 2)} USD",
+            f"$ {num(cif_cop)} COP",
+            f"$ {num(arancel_cop)} COP",
+            f"$ {num(iva_cop)} COP",
+            f"$ {num(total_tributos_cop)} COP",
+            f"$ {num(total_gastos_locales_cop)} COP",
+            f"$ {num(costo_total_landed_cop)} COP",
+        ],
+    }
+    st.dataframe(
+        pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
+    )
+
+
+  # ==================== ACCIONES Y REPORTES ====================
+  st.divider()
+  titulo("acciones", "Acciones Directas")
+  st.caption(
+      f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
+      f" {datos_cotizacion['origen_trm']}"
+  )
+
+  mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente operación en FronteraIQ:
+
+  📌 *Producto:* {producto}
+  🔢 *Partida:* {partida_arancelaria}
+  📦 *Cantidad:* {num(unidades)} uds
+  💵 *Valor CIF:* ${num(cif_usd, 2)} USD
+  🏛️ *Tributos DIAN:* ${num(total_tributos_cop)} COP
+  🚚 *Costo Landed Total:* ${num(costo_total_landed_cop)} COP"""
+
+  mensaje_encoded = urllib.parse.quote(mensaje_whatsapp)
+  url_whatsapp = (
+      f"https://api.whatsapp.com/send?phone={TELEFONO_WHATSAPP}&text={mensaje_encoded}"
+  )
+
+  c1, c2, c3 = st.columns([1, 1, 1])
+
+  with c1:
+    st.markdown(
+        f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">'
+        f"{icono('acciones', 20)}&nbsp; Contactar por WhatsApp</a>",
+        unsafe_allow_html=True,
+    )
+
+  with c2:
+    if es_pro:
+      try:
+        pdf_bytes = generar_pdf_cotizacion(datos_cotizacion)
+      except Exception:
+        pdf_bytes = None
+        st.error("No se pudo generar el PDF. Revisa el nombre del producto.")
+      if pdf_bytes:
+        nombre_seguro = re.sub(r"[^A-Za-z0-9_-]+", "_", producto).strip("_")
+        st.download_button(
+            label="Descargar Cotización PDF (Pro)",
+            data=pdf_bytes,
+            file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
+            mime="application/pdf",
+            width="stretch",
+        )
+    else:
+      st.button(
+          "Descargar PDF (requiere licencia Pro)",
+          disabled=True,
           width="stretch",
       )
-  else:
-    st.button(
-        "Descargar PDF (requiere licencia Pro)",
-        disabled=True,
+
+  with c3:
+    df_export = pd.DataFrame([fila_csv(datos_cotizacion)])
+    csv = df_export.to_csv(index=False).encode("utf-8-sig")  # BOM: Excel lee bien las tildes
+    st.download_button(
+        label="Exportar a CSV",
+        data=csv,
+        file_name=f"{datos_cotizacion['codigo']}.csv",
+        mime="text/csv",
         width="stretch",
     )
 
-with c3:
-  df_export = pd.DataFrame([fila_csv(datos_cotizacion)])
-  csv = df_export.to_csv(index=False).encode("utf-8-sig")  # BOM: Excel lee bien las tildes
-  st.download_button(
-      label="Exportar a CSV",
-      data=csv,
-      file_name=f"{datos_cotizacion['codigo']}.csv",
-      mime="text/csv",
-      width="stretch",
-  )
+
+# ==================== NAVEGACIÓN: INICIO (LANDING) + CALCULADORA ====================
+import landing  # noqa: E402
+
+_PAGINAS = {}
+
+
+def inicio():
+  landing.mostrar_landing(_PAGINAS["calculadora"], trm_oficial, trm_fecha, trm_es_oficial)
+
+
+_INICIO_ES_CALCULADORA = os.environ.get("FIQ_PAGINA_INICIAL") == "calculadora"  # solo para las pruebas
+_PAGINAS["inicio"] = st.Page(
+    inicio, title="Inicio", icon=":material/home:",
+    url_path="inicio" if _INICIO_ES_CALCULADORA else "", default=not _INICIO_ES_CALCULADORA,
+)
+_PAGINAS["calculadora"] = st.Page(
+    calculadora, title="Calculadora", icon=":material/calculate:",
+    url_path="" if _INICIO_ES_CALCULADORA else "calculadora", default=_INICIO_ES_CALCULADORA,
+)
+st.navigation(list(_PAGINAS.values()), position="hidden").run()

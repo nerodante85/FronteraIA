@@ -159,3 +159,7 @@ Cubre la cadena de cálculo, la consulta de la TRM (éxito, falla, caché y form
 - [ ] Tasas fronterizas (VES y USDT) en tiempo real
 - [x] Pruebas automatizadas y CI
 - [ ] Validar la tabla NANDINA con un agente de aduanas (`docs/validacion-nandina.csv`)
+
+## Landing y calculadora en una sola app
+
+`app.py` es el punto de entrada con dos páginas: **Inicio** (`landing.py`, ruta `/`) y **Calculadora** (ruta `/calculadora`). Los botones de plan de la landing usan por defecto WhatsApp; para poner los links de pago de Wompi define los secretos `LINK_PRO_MENSUAL`, `LINK_PRO_ANUAL` y `LINK_AGENCIA` (en `st.secrets` o como variables de entorno).
