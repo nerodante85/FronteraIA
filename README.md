@@ -97,21 +97,47 @@ El repositorio incluye una configuración de **Dev Container** (`.devcontainer/`
 
 ## Configuración
 
-Estos valores se editan directamente en `app.py`:
+**Licencia Pro.** La clave no está en el código. Se define con el nombre `PRO_LICENSE_KEY`, en `.streamlit/secrets.toml` (local, ya ignorado por Git) o en los *Secrets* del despliegue, o como variable de entorno:
+
+```toml
+# .streamlit/secrets.toml
+PRO_LICENSE_KEY = "una-clave-larga-y-unica"
+```
+
+Mientras no esté definida, el plan Pro no se puede activar.
+
+**Valores en el código** (`app.py`):
 
 | Parámetro | Ubicación | Descripción |
 |---|---|---|
 | `TELEFONO_WHATSAPP` | Inicio del archivo | Número de contacto con prefijo de país (por ejemplo `57...`) |
 | `DATABASE_NANDINA` | Sección *Base de datos NANDINA* | Partidas, aranceles e IVA predefinidos; se pueden agregar nuevas entradas |
-| Valor de respaldo de la TRM | Función `obtener_trm_actual` | TRM usada si la consulta a `datos.gov.co` falla |
+| `PARTIDAS_VALIDADAS` | Después de la tabla NANDINA | Partidas ya validadas por un agente de aduanas, con fuente y vigencia (ver `docs/validacion-nandina.csv`) |
+| `TRM_RESPALDO` | Sección *Consulta TRM* | TRM usada, con advertencia visible, si la consulta a `datos.gov.co` falla |
+
+## Pruebas
+
+La suite usa `pytest` y el arnés de pruebas de Streamlit; no hace llamadas de red (la TRM se simula).
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+Cubre la cadena de cálculo, la consulta de la TRM (éxito, falla, caché y forma de la consulta), la licencia Pro, la generación del PDF con texto especial y los avisos de la tabla NANDINA. Se ejecuta automáticamente en GitHub Actions (Python 3.11 y 3.13) en cada *push* y *pull request*.
 
 ## Estructura del repositorio
 
 ```
 .
-├── app.py              # Aplicación completa (interfaz, cálculos, PDF)
-├── requirements.txt    # Dependencias de Python
-├── .devcontainer/      # Entorno de desarrollo para Codespaces / VS Code
+├── app.py                  # Aplicación completa (interfaz, cálculos, PDF)
+├── requirements.txt        # Dependencias fijadas
+├── requirements-dev.txt    # Dependencias + pytest
+├── pytest.ini
+├── tests/                  # Pruebas automáticas
+├── docs/                   # Roadmap de IA y hoja de validación NANDINA
+├── .github/workflows/      # Integración continua
+├── .devcontainer/          # Entorno de desarrollo para Codespaces / VS Code
 └── README.md
 ```
 
@@ -119,7 +145,7 @@ Estos valores se editan directamente en `app.py`:
 
 - **Las cifras son estimaciones.** La herramienta proyecta costos para apoyar la toma de decisiones y **no constituye una liquidación oficial de la DIAN**. Los aranceles e IVA de la base NANDINA son valores de referencia: deben verificarse contra la normativa y el arancel vigentes antes de cualquier operación.
 - **Alcance actual:** la versión actual calcula **importaciones a Colombia**. El cálculo de exportaciones hacia Venezuela aún no está implementado.
-- **Licencia Pro de demostración:** la validación de la clave se hace en el propio código, por lo que no es un control de acceso seguro. Para uso comercial se recomienda un sistema de licencias en servidor.
+- **Licencia Pro básica:** hay una única clave compartida, validada dentro de la app. Sirve para demos y pilotos; para uso comercial se recomienda un sistema de licencias por usuario en servidor.
 - Las tasas COP/VES y COP/USDT del plan Pro son valores editables por el usuario, no cotizaciones en tiempo real.
 
 ## Hoja de ruta
@@ -129,4 +155,5 @@ Estos valores se editan directamente en `app.py`:
 - [ ] Licenciamiento y autenticación de usuarios en servidor
 - [ ] Historial de cotizaciones guardadas
 - [ ] Tasas fronterizas (VES y USDT) en tiempo real
-- [ ] Pruebas automatizadas de las fórmulas de liquidación
+- [x] Pruebas automatizadas y CI
+- [ ] Validar la tabla NANDINA con un agente de aduanas (`docs/validacion-nandina.csv`)

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secretos y configuración local (nunca subir claves)
+.streamlit/secrets.toml
+.env
+*.env
+
+# Sistema y editores
+.DS_Store
+.idea/
+.vscode/
