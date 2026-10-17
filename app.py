@@ -542,7 +542,7 @@ with col_chart:
       hole=0.4,
       color_discrete_sequence=["#38bdf8", "#f87171", "#818cf8"],
   )
-  st.plotly_chart(fig, use_container_width=True)
+  st.plotly_chart(fig, width="stretch")
 
 with col_table:
   st.markdown("#### Desglose de Liquidación")
@@ -567,7 +567,7 @@ with col_table:
       ],
   }
   st.dataframe(
-      pd.DataFrame(liquidacion_data), use_container_width=True, hide_index=True
+      pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
   )
 
 
@@ -626,13 +626,13 @@ with c2:
           data=pdf_bytes,
           file_name=f"cotizacion_{nombre_seguro or 'producto'}.pdf",
           mime="application/pdf",
-          use_container_width=True,
+          width="stretch",
       )
   else:
     st.button(
         "📄 Descargar PDF (Licencia Pro 🔒)",
         disabled=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 with c3:
@@ -649,5 +649,5 @@ with c3:
       data=csv,
       file_name="cotizacion.csv",
       mime="text/csv",
-      use_container_width=True,
+      width="stretch",
   )
