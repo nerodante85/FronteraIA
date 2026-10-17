@@ -31,21 +31,13 @@ css_code = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Public+Sans:wght@400;600;800&display=swap');
 
-/* Design System FronteraIQ: tokens (claro por defecto, oscuro según el sistema) */
+/* Design System FronteraIQ: tokens (solo claro, igual que la landing) */
 :root {
     --fiq-surface: #E8EDEB; --fiq-raised: #FBFCFB; --fiq-ink: #0B2527;
     --fiq-muted: #3C5C5F; --fiq-signal: #F5B700; --fiq-on-signal: #0B2527;
     --fiq-on-ink: #E8EDEB; --fiq-line: #9DB1B1; --fiq-focus: #1F4FD8;
     --fiq-success: #166A3E; --fiq-critical: #B3261E;
     --fiq-shadow: 8px 8px 0 #0B2527;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --fiq-surface: #0B2527; --fiq-raised: #123638; --fiq-ink: #E8EDEB;
-        --fiq-muted: #B9CCCB; --fiq-on-ink: #0B2527; --fiq-line: #3C5C5F;
-        --fiq-focus: #7FA2FF; --fiq-success: #5BD08F; --fiq-critical: #FF8A80;
-        --fiq-shadow: 8px 8px 0 #000000;
-    }
 }
 
 html, body, [class*="css"] {
