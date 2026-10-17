@@ -66,7 +66,7 @@ def app_pro(monkeypatch, nueva_app):
   """App con el plan Pro activado mediante una clave de prueba."""
   monkeypatch.setenv("PRO_LICENSE_KEY", "clave-de-prueba")
   at = nueva_app()
-  at.sidebar.radio[0].set_value("Pro / Premium ⭐").run()
+  at.sidebar.radio[0].set_value("Pro / Premium").run()
   at.sidebar.text_input[0].set_value("clave-de-prueba").run()
   return at
 

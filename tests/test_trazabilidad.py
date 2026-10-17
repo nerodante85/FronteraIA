@@ -12,7 +12,7 @@ EMISION = datetime(2026, 10, 17, 9, 5, tzinfo=ZONA)
 F = cargar_funciones(
     "CAMPOS_CODIGO", "codigo_cotizacion", "origen_trm", "estado_aranceles",
     "lineas_liquidacion", "fila_csv", "generar_pdf_cotizacion", "_texto_pdf",
-    "_REEMPLAZOS_PDF", "num",
+    "_REEMPLAZOS_PDF", "num", "ICONOS", "icono",
 )
 
 
@@ -149,3 +149,12 @@ def test_formato_colombiano_de_cifras():
   assert F["num"](61178.6, 2) == "61.178,60"
   assert F["num"](0) == "0"
   assert F["num"](-1234.5, 2) == "-1.234,50"
+
+
+def test_iconos_son_svg_validos():
+  import xml.etree.ElementTree as ET
+  assert len(F["ICONOS"]) >= 10
+  for nombre in F["ICONOS"]:
+    svg = F["icono"](nombre)
+    assert "currentColor" in svg
+    ET.fromstring(svg)  # XML bien formado
