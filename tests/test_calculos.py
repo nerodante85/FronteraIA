@@ -9,10 +9,10 @@ def test_caso_por_defecto(nueva_app):
   at = nueva_app()
   assert not at.exception
   landed, unitario, tributos, precio = metricas(at)
-  assert landed == "61,178,600"
-  assert unitario == "61,178.60"
-  assert tributos == "14,028,600"
-  assert precio == "87,398.00"  # 61.178,60 / (1 - 0,30)
+  assert landed == "61.178.600"
+  assert unitario == "61.178,60"
+  assert tributos == "14.028.600"
+  assert precio == "87.398,00"  # 61.178,60 / (1 - 0,30)
 
 
 def test_arancel_e_iva_en_cero(nueva_app):
@@ -22,7 +22,7 @@ def test_arancel_e_iva_en_cero(nueva_app):
   at.run()
   landed, _, tributos, _ = metricas(at)
   assert tributos == "0"
-  assert landed == "47,150,000"  # CIF 45.400.000 + gastos 1.750.000
+  assert landed == "47.150.000"  # CIF 45.400.000 + gastos 1.750.000
 
 
 def test_la_base_del_iva_incluye_el_arancel(nueva_app):
@@ -31,7 +31,7 @@ def test_la_base_del_iva_incluye_el_arancel(nueva_app):
   numero(at, "IVA (%)").set_value(19.0)
   at.run()
   # arancel = 18.160.000; IVA = (45.400.000 + 18.160.000) * 0,19 = 12.076.400
-  assert metricas(at)[2] == "30,236,400"
+  assert metricas(at)[2] == "30.236.400"
 
 
 def test_casos_limite_no_producen_excepciones(nueva_app):

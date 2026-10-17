@@ -24,6 +24,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+def num(valor, decimales=0):
+  """Formato colombiano: punto de miles y coma decimal (1.234.567,89)."""
+  txt = f"{valor:,.{decimales}f}"
+  return txt.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 
 # ==================== INYECCIÓN CSS SEGURA ====================
@@ -31,21 +37,13 @@ css_code = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Public+Sans:wght@400;600;800&display=swap');
 
-/* Design System FronteraIQ: tokens (claro por defecto, oscuro según el sistema) */
+/* Design System FronteraIQ: tokens (solo claro, igual que la landing) */
 :root {
     --fiq-surface: #E8EDEB; --fiq-raised: #FBFCFB; --fiq-ink: #0B2527;
     --fiq-muted: #3C5C5F; --fiq-signal: #F5B700; --fiq-on-signal: #0B2527;
     --fiq-on-ink: #E8EDEB; --fiq-line: #9DB1B1; --fiq-focus: #1F4FD8;
     --fiq-success: #166A3E; --fiq-critical: #B3261E;
     --fiq-shadow: 8px 8px 0 #0B2527;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --fiq-surface: #0B2527; --fiq-raised: #123638; --fiq-ink: #E8EDEB;
-        --fiq-muted: #B9CCCB; --fiq-on-ink: #0B2527; --fiq-line: #3C5C5F;
-        --fiq-focus: #7FA2FF; --fiq-success: #5BD08F; --fiq-critical: #FF8A80;
-        --fiq-shadow: 8px 8px 0 #000000;
-    }
 }
 
 html, body, [class*="css"] {
@@ -155,6 +153,18 @@ div[data-baseweb="input"] {
     min-height: 48px !important;
 }
 button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !important; outline-offset: 3px; }
+
+/* Movimiento: solo feedback al presionar, corto y con ease-out */
+.stButton>button, .stDownloadButton>button, .whatsapp-btn {
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.stButton>button:active, .stDownloadButton>button:active, .whatsapp-btn:active {
+    transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+    .stButton>button, .stDownloadButton>button, .whatsapp-btn { transition: none; }
+    .stButton>button:active, .stDownloadButton>button:active, .whatsapp-btn:active { transform: none; }
+}
 </style>
 """
 
@@ -307,8 +317,8 @@ def estado_aranceles(personalizada, ajustados, validacion):
 
 def lineas_liquidacion(d):
   """Filas (concepto, valor, destacada) de la liquidación, para el PDF."""
-  usd = lambda v: f"${v:,.2f} USD"
-  cop = lambda v: f"${v:,.0f} COP"
+  usd = lambda v: f"${num(v, 2)} USD"
+  cop = lambda v: f"${num(v)} COP"
   return [
       ("Valor FOB", usd(d["fob_usd"]), False),
       ("Flete internacional", usd(d["flete_usd"]), False),
@@ -325,9 +335,9 @@ def lineas_liquidacion(d):
       ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
       ("Total gastos logísticos Cúcuta", cop(d["gastos_locales_cop"]), False),
       ("COSTO TOTAL LANDED", cop(d["costo_total_landed_cop"]), True),
-      ("COSTO LANDED UNITARIO", f"${d['costo_unitario_cop']:,.2f} COP", True),
+      ("COSTO LANDED UNITARIO", f"${num(d['costo_unitario_cop'], 2)} COP", True),
       (f"Margen deseado ({d['pct_margen']:g} % sobre el precio)", "", False),
-      ("PRECIO DE VENTA SUGERIDO (UNITARIO)", f"${d['precio_sugerido_unitario_cop']:,.2f} COP", True),
+      ("PRECIO DE VENTA SUGERIDO (UNITARIO)", f"${num(d['precio_sugerido_unitario_cop'], 2)} COP", True),
   ]
 
 
@@ -382,8 +392,8 @@ def generar_pdf_cotizacion(datos):
       ("Fecha de emision", datos["emision"].strftime("%Y-%m-%d %H:%M") + " (hora de Colombia)"),
       ("Producto", datos["producto"]),
       ("Partida NANDINA", datos["partida"]),
-      ("Cantidad", f"{datos['unidades']:,} uds"),
-      ("TRM aplicada", f"${datos['trm']:,.2f} COP/USD"),
+      ("Cantidad", f"{num(datos['unidades'])} uds"),
+      ("TRM aplicada", f"${num(datos['trm'], 2)} COP/USD"),
       ("Origen de la TRM", datos["origen_trm"]),
       ("Estado de arancel e IVA", datos["estado_aranceles"]),
   ]
@@ -498,7 +508,7 @@ if trm_es_oficial:
 else:
   st.sidebar.warning(
       "⚠️ No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
-      f" ({TRM_RESPALDO:,.0f} COP/USD), que NO es la TRM vigente. Ingresa la"
+      f" ({num(TRM_RESPALDO)} COP/USD), que NO es la TRM vigente. Ingresa la"
       " TRM actual manualmente."
   )
 
@@ -705,7 +715,7 @@ m1.markdown(
     f"""
     <div class="metric-card is-main">
         <div class="metric-label">Costo Total Landed</div>
-        <div class="metric-value">$ {costo_total_landed_cop:,.0f}</div>
+        <div class="metric-value">$ {num(costo_total_landed_cop)}</div>
         <div class="metric-subtext">COP Puesto en Cúcuta</div>
     </div>
 """,
@@ -716,7 +726,7 @@ m2.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Costo Unitario</div>
-        <div class="metric-value">$ {costo_unitario_cop:,.2f}</div>
+        <div class="metric-value">$ {num(costo_unitario_cop, 2)}</div>
         <div class="metric-subtext">Por unidad importada</div>
     </div>
 """,
@@ -727,7 +737,7 @@ m3.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Impuestos DIAN</div>
-        <div class="metric-value">$ {total_tributos_cop:,.0f}</div>
+        <div class="metric-value">$ {num(total_tributos_cop)}</div>
         <div class="metric-subtext">Arancel + IVA</div>
     </div>
 """,
@@ -738,7 +748,7 @@ m4.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Precio Venta Sugerido</div>
-        <div class="metric-value">$ {precio_sugerido_unitario_cop:,.2f}</div>
+        <div class="metric-value">$ {num(precio_sugerido_unitario_cop, 2)}</div>
         <div class="metric-subtext">Margen {pct_margen}%</div>
     </div>
 """,
@@ -750,8 +760,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 if es_pro:
   st.info(
       f"💱 **Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
-      f" `{costo_total_usdt:,.2f} USDT` | **Bolívares (VES):**"
-      f" `{costo_total_ves:,.2f} VES`"
+      f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):**"
+      f" `{num(costo_total_ves, 2)} VES`"
   )
 
 col_chart, col_table = st.columns([1, 1], gap="large")
@@ -784,13 +794,13 @@ with col_table:
           "COSTO TOTAL LANDED",
       ],
       "Monto": [
-          f"$ {cif_usd:,.2f} USD",
-          f"$ {cif_cop:,.0f} COP",
-          f"$ {arancel_cop:,.0f} COP",
-          f"$ {iva_cop:,.0f} COP",
-          f"$ {total_tributos_cop:,.0f} COP",
-          f"$ {total_gastos_locales_cop:,.0f} COP",
-          f"$ {costo_total_landed_cop:,.0f} COP",
+          f"$ {num(cif_usd, 2)} USD",
+          f"$ {num(cif_cop)} COP",
+          f"$ {num(arancel_cop)} COP",
+          f"$ {num(iva_cop)} COP",
+          f"$ {num(total_tributos_cop)} COP",
+          f"$ {num(total_gastos_locales_cop)} COP",
+          f"$ {num(costo_total_landed_cop)} COP",
       ],
   }
   st.dataframe(
@@ -810,10 +820,10 @@ mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente opera
 
 📌 *Producto:* {producto}
 🔢 *Partida:* {partida_arancelaria}
-📦 *Cantidad:* {unidades:,} uds
-💵 *Valor CIF:* ${cif_usd:,.2f} USD
-🏛️ *Tributos DIAN:* ${total_tributos_cop:,.0f} COP
-🚚 *Costo Landed Total:* ${costo_total_landed_cop:,.0f} COP"""
+📦 *Cantidad:* {num(unidades)} uds
+💵 *Valor CIF:* ${num(cif_usd, 2)} USD
+🏛️ *Tributos DIAN:* ${num(total_tributos_cop)} COP
+🚚 *Costo Landed Total:* ${num(costo_total_landed_cop)} COP"""
 
 mensaje_encoded = urllib.parse.quote(mensaje_whatsapp)
 url_whatsapp = (

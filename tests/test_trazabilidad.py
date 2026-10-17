@@ -12,7 +12,7 @@ EMISION = datetime(2026, 10, 17, 9, 5, tzinfo=ZONA)
 F = cargar_funciones(
     "CAMPOS_CODIGO", "codigo_cotizacion", "origen_trm", "estado_aranceles",
     "lineas_liquidacion", "fila_csv", "generar_pdf_cotizacion", "_texto_pdf",
-    "_REEMPLAZOS_PDF",
+    "_REEMPLAZOS_PDF", "num",
 )
 
 
@@ -78,13 +78,13 @@ def test_estado_aranceles():
 # --- Filas de la liquidación y CSV ---------------------------------------
 def test_liquidacion_muestra_porcentajes_y_desglose():
   filas = {c: v for c, v, _ in F["lineas_liquidacion"](datos_base())}
-  assert filas["Arancel DIAN (10 %)"] == "$4,540,000 COP"
-  assert filas["IVA DIAN (19 %)"] == "$9,488,600 COP"
-  assert filas["Base gravable del IVA (CIF + arancel)"] == "$49,940,000 COP"
-  assert filas["Agenciamiento SIA"] == "$450,000 COP"
-  assert filas["Total gastos logísticos Cúcuta"] == "$1,750,000 COP"
-  assert filas["COSTO TOTAL LANDED"] == "$61,178,600 COP"
-  assert filas["PRECIO DE VENTA SUGERIDO (UNITARIO)"] == "$87,398.00 COP"
+  assert filas["Arancel DIAN (10 %)"] == "$4.540.000 COP"
+  assert filas["IVA DIAN (19 %)"] == "$9.488.600 COP"
+  assert filas["Base gravable del IVA (CIF + arancel)"] == "$49.940.000 COP"
+  assert filas["Agenciamiento SIA"] == "$450.000 COP"
+  assert filas["Total gastos logísticos Cúcuta"] == "$1.750.000 COP"
+  assert filas["COSTO TOTAL LANDED"] == "$61.178.600 COP"
+  assert filas["PRECIO DE VENTA SUGERIDO (UNITARIO)"] == "$87.398,00 COP"
 
 
 def test_csv_incluye_todo_para_reconstruir():
@@ -142,3 +142,10 @@ def test_trm_manual_se_refleja_en_el_origen(nueva_app):
   at = nueva_app()
   next(n for n in at.sidebar.number_input if n.label.startswith("TRM")).set_value(3500.0).run()
   assert any("manualmente" in c.value for c in at.caption)
+
+
+def test_formato_colombiano_de_cifras():
+  assert F["num"](61178600) == "61.178.600"
+  assert F["num"](61178.6, 2) == "61.178,60"
+  assert F["num"](0) == "0"
+  assert F["num"](-1234.5, 2) == "-1.234,50"
