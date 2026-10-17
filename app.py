@@ -1,4 +1,7 @@
+import hmac
 import io
+import os
+import re
 import urllib.parse
 from fpdf import FPDF
 import pandas as pd
@@ -107,22 +110,37 @@ st.markdown(css_code, unsafe_allow_html=True)
 
 
 # ==================== CONSULTA TRM OFICIAL ====================
+TRM_RESPALDO = 4000.0
+TRM_URL = "https://www.datos.gov.co/resource/32sa-213a.json"
+
+
 @st.cache_data(ttl=3600)
+def _consultar_trm():
+  """Consulta la TRM vigente. Lanza excepción si falla (los fallos no se cachean)."""
+  response = requests.get(
+      TRM_URL,
+      params={"$order": "vigenciahasta DESC", "$limit": 1},
+      timeout=5,
+  )
+  response.raise_for_status()
+  registro = response.json()[0]
+  valor = float(registro["valor"])
+  if not 1000.0 <= valor <= 20000.0:
+    raise ValueError(f"TRM fuera de un rango razonable: {valor}")
+  fecha = str(registro.get("vigenciadesde", ""))[:10]
+  return valor, fecha
+
+
 def obtener_trm_actual():
+  """Devuelve (valor, fecha, es_oficial). Si la consulta falla, usa el respaldo."""
   try:
-    url = (
-        "https://www.datos.gov.co/resource/32sa-213a.json?$order=vigenciasta\%20DESC&$limit=1"
-    )
-    response = requests.get(url, timeout=5)
-    if response.status_code == 200:
-      data = response.json()
-      return float(data[0]["valor"])
+    valor, fecha = _consultar_trm()
+    return valor, fecha, True
   except Exception:
-    pass
-  return 4000.0
+    return TRM_RESPALDO, "", False
 
 
-trm_oficial = obtener_trm_actual()
+trm_oficial, trm_fecha, trm_es_oficial = obtener_trm_actual()
 
 
 # ==================== BASE DE DATOS NANDINA ====================
@@ -171,7 +189,26 @@ DATABASE_NANDINA = {
 
 
 # ==================== GENERACIÓN DE PDF CORREGIDA ====================
+_REEMPLAZOS_PDF = {
+    "–": "-", "—": "-", "‘": "'", "’": "'", "“": '"', "”": '"',
+    "…": "...", "€": "EUR", " ": " ",
+}
+
+
+def _texto_pdf(texto):
+  """Adapta texto libre a Latin-1 (fuente estándar del PDF). Lo no soportado pasa a '?'."""
+  texto = str(texto)
+  for original, reemplazo in _REEMPLAZOS_PDF.items():
+    texto = texto.replace(original, reemplazo)
+  return texto.encode("latin-1", errors="replace").decode("latin-1")
+
+
 def generar_pdf_cotizacion(datos):
+  datos = {
+      **datos,
+      "producto": _texto_pdf(datos["producto"]),
+      "partida": _texto_pdf(datos["partida"]),
+  }
   pdf = FPDF()
   pdf.add_page()
   pdf.set_font("Helvetica", "B", 16)
@@ -255,24 +292,42 @@ def generar_pdf_cotizacion(datos):
 st.sidebar.header("🔐 Acceso de Usuario")
 tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium ⭐"])
 
+def _clave_pro_configurada():
+  """Lee la clave Pro desde st.secrets o la variable de entorno PRO_LICENSE_KEY."""
+  try:
+    clave = st.secrets.get("PRO_LICENSE_KEY")
+  except Exception:
+    clave = None
+  return clave or os.environ.get("PRO_LICENSE_KEY")
+
+
 es_pro = False
 if tipo_plan == "Pro / Premium ⭐":
-  clave_pro = st.sidebar.text_input(
-      "Clave de Licencia Pro",
-      type="password",
-      help="Ingresa 'PRO2026' para probar la versión Premium",
-  )
-  if clave_pro == "PRO2026":
+  clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
+  clave_valida = _clave_pro_configurada()
+  if not clave_valida:
+    st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
+  elif clave_pro and hmac.compare_digest(
+      clave_pro.encode("utf-8"), str(clave_valida).encode("utf-8")
+  ):
     st.sidebar.success("✅ Licencia Pro Activa")
     es_pro = True
-  else:
-    st.sidebar.warning("⚠️ Clave de prueba Pro: PRO2026")
+  elif clave_pro:
+    st.sidebar.warning("⚠️ Clave de licencia no válida.")
 
 st.sidebar.divider()
 st.sidebar.header("⚙️ Parámetros de Monedas")
 trm = st.sidebar.number_input(
     "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
 )
+if trm_es_oficial:
+  st.sidebar.caption(f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)")
+else:
+  st.sidebar.warning(
+      "⚠️ No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
+      f" ({TRM_RESPALDO:,.0f} COP/USD), que NO es la TRM vigente. Ingresa la"
+      " TRM actual manualmente."
+  )
 
 if es_pro:
   st.sidebar.subheader("💱 Tasa Fronteriza (Multi-moneda)")
@@ -559,14 +614,20 @@ with c2:
         "costo_total_landed_cop": costo_total_landed_cop,
         "costo_unitario_cop": costo_unitario_cop,
     }
-    pdf_bytes = generar_pdf_cotizacion(datos_pdf)
-    st.download_button(
-        label="📄 Descargar Cotización PDF (Pro)",
-        data=pdf_bytes,
-        file_name=f"cotizacion_{producto.replace(' ', '_')}.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-    )
+    try:
+      pdf_bytes = generar_pdf_cotizacion(datos_pdf)
+    except Exception:
+      pdf_bytes = None
+      st.error("No se pudo generar el PDF. Revisa el nombre del producto.")
+    if pdf_bytes:
+      nombre_seguro = re.sub(r"[^A-Za-z0-9_-]+", "_", producto).strip("_")
+      st.download_button(
+          label="📄 Descargar Cotización PDF (Pro)",
+          data=pdf_bytes,
+          file_name=f"cotizacion_{nombre_seguro or 'producto'}.pdf",
+          mime="application/pdf",
+          use_container_width=True,
+      )
   else:
     st.button(
         "📄 Descargar PDF (Licencia Pro 🔒)",
