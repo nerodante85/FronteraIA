@@ -5,7 +5,7 @@ from conftest import APP_PATH
 
 
 def _abrir_pro(at, clave):
-  at.sidebar.radio[0].set_value("Pro / Premium ⭐").run()
+  at.sidebar.radio[0].set_value("Pro / Premium").run()
   at.sidebar.text_input[0].set_value(clave).run()
   return at
 

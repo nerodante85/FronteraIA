@@ -19,7 +19,7 @@ import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
     page_title="FronteraIQ Pro — Inteligencia Aduanera Cúcuta",
-    page_icon="🚢",
+    page_icon=os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "favicon.png"),
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -28,6 +28,43 @@ def num(valor, decimales=0):
   """Formato colombiano: punto de miles y coma decimal (1.234.567,89)."""
   txt = f"{valor:,.{decimales}f}"
   return txt.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+# ==================== ICONOS FRONTERAIQ ====================
+# Set propio (ver Design System): rejilla de 24 px, trazo de 2 px, esquinas rectas.
+ICONOS = {
+    "contenedor": '<rect x="3" y="6" width="18" height="12"/><path d="M7 6v12M12 6v12M17 6v12"/>',
+    "mercancia": '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+    "valores": '<circle cx="12" cy="12" r="9"/><path d="M12 6v12M15.5 9H10a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8.5"/>',
+    "tributos": '<path d="M3 21h18M5 21V10M9 21V10M15 21V10M19 21V10M3 10l9-6 9 6z"/>',
+    "logistica": '<path d="M2 6h12v10H2zM14 9h4l4 4v3h-8z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+    "resultados": '<path d="M3 3v18h18M7 15l4-4 3 3 5-6"/>',
+    "acciones": '<path d="M3 4h18v13H9l-6 4z"/>',
+    "acceso": '<rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    "parametros": '<path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="17" r="2"/>',
+    "cambio": '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
+    "buscar": '<circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/>',
+    "validado": '<path d="M4 12l5 5L20 6"/>',
+    "alerta": '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',
+    "descargar": '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+}
+
+
+def icono(nombre, tamano=22):
+  """SVG en línea del set FronteraIQ; toma el color del texto (currentColor)."""
+  return (
+      f'<svg class="fiq-icono" width="{tamano}" height="{tamano}" viewBox="0 0 24 24"'
+      ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"'
+      f' stroke-linejoin="miter" aria-hidden="true">{ICONOS[nombre]}</svg>'
+  )
+
+
+def titulo(nombre, texto, nivel=3, destino=None):
+  """Título con icono propio (reemplaza a los emoji)."""
+  (destino or st).markdown(
+      f'<h{nivel} class="fiq-titulo">{icono(nombre, 30 if nivel < 4 else 26)}{texto}</h{nivel}>',
+      unsafe_allow_html=True,
+  )
 
 
 TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
@@ -55,6 +92,10 @@ h1, h2, h3 {
     font-weight: 800 !important;
     letter-spacing: -0.02em;
 }
+
+.fiq-icono { display: inline-block; vertical-align: -0.2em; margin-right: 12px; }
+.hero-title { display: flex; align-items: center; }
+.hero-title .fiq-icono { margin-right: 14px; vertical-align: middle; }
 
 .hero-header {
     background: var(--fiq-ink);
@@ -433,8 +474,8 @@ def generar_pdf_cotizacion(datos):
 
 
 # ==================== BARRA LATERAL (SIDEBAR) ====================
-st.sidebar.header("🔐 Acceso de Usuario")
-tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium ⭐"])
+titulo("acceso", "Acceso de Usuario", 2, st.sidebar)
+tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"])
 
 def _clave_pro_configurada():
   """Lee la clave Pro desde st.secrets o la variable de entorno PRO_LICENSE_KEY."""
@@ -483,23 +524,23 @@ def validar_licencia_pro(clave):
       clave.encode("utf-8"), str(clave_valida).encode("utf-8")
   ):
     return True, None
-  return False, "⚠️ Clave de licencia no válida."
+  return False, "Clave de licencia no válida."
 
 
 es_pro = False
-if tipo_plan == "Pro / Premium ⭐":
+if tipo_plan == "Pro / Premium":
   clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
   if not _config_licencias() and not _clave_pro_configurada():
     st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
   elif clave_pro:
     es_pro, error_licencia = validar_licencia_pro(clave_pro)
     if es_pro:
-      st.sidebar.success("✅ Licencia Pro Activa")
+      st.sidebar.success("Licencia Pro activa")
     else:
       st.sidebar.warning(error_licencia)
 
 st.sidebar.divider()
-st.sidebar.header("⚙️ Parámetros de Monedas")
+titulo("parametros", "Parámetros de Monedas", 2, st.sidebar)
 trm = st.sidebar.number_input(
     "TRM Oficial (COP / USD)", min_value=1000.0, value=trm_oficial, step=10.0
 )
@@ -507,13 +548,13 @@ if trm_es_oficial:
   st.sidebar.caption(f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)")
 else:
   st.sidebar.warning(
-      "⚠️ No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
+      "No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
       f" ({num(TRM_RESPALDO)} COP/USD), que NO es la TRM vigente. Ingresa la"
       " TRM actual manualmente."
   )
 
 if es_pro:
-  st.sidebar.subheader("💱 Tasa Fronteriza (Multi-moneda)")
+  titulo("cambio", "Tasa Fronteriza (Multi-moneda)", 3, st.sidebar)
   tasa_ves_cop = st.sidebar.number_input(
       "Tasa COP / Bolívares (VES)", value=0.08, step=0.01, format="%.4f"
   )
@@ -527,9 +568,9 @@ else:
 
 # ==================== ENCABEZADO PRINCIPAL ====================
 st.markdown(
-    """
+    f"""
     <div class="hero-header">
-        <div class="hero-title">🚢 FronteraIQ Pro</div>
+        <div class="hero-title">{icono('contenedor', 34)} FronteraIQ Pro</div>
         <div class="hero-subtitle">Plataforma de Inteligencia Aduanera y Cálculo de Costos Landed en Cúcuta</div>
     </div>
 """,
@@ -541,10 +582,10 @@ st.markdown(
 col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
-  st.subheader("📦 Mercancía y Partida NANDINA")
+  titulo("mercancia", "Mercancía y Partida NANDINA")
 
   producto_sel = st.selectbox(
-      "🔍 Seleccionar o buscar tipo de producto",
+      "Seleccionar o buscar tipo de producto",
       list(DATABASE_NANDINA.keys()),
   )
   partida_info = DATABASE_NANDINA[producto_sel]
@@ -566,7 +607,7 @@ with col_left:
     validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
     if validacion:
       st.caption(
-          f"✅ Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
+          f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
           f" Vigencia: {validacion['vigencia']}"
       )
     else:
@@ -580,7 +621,7 @@ with col_left:
       "Cantidad de Unidades", min_value=1, value=1000, step=1
   )
 
-  st.markdown("#### 💰 Valores de la Carga (USD)")
+  titulo("valores", "Valores de la Carga (USD)", 4)
   fob_usd = st.number_input(
       "Valor FOB Total (USD)", min_value=0.0, value=10000.0, step=100.0
   )
@@ -592,7 +633,7 @@ with col_left:
   )
 
 with col_right:
-  st.subheader("🏛️ Impuestos y Gastos Locales")
+  titulo("tributos", "Impuestos y Gastos Locales")
 
   col_imp1, col_imp2 = st.columns(2)
   with col_imp1:
@@ -608,7 +649,7 @@ with col_right:
         "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
     )
 
-  st.markdown("#### 🚚 Logística Frontera Cúcuta (COP)")
+  titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
   agenciamiento_cop = st.number_input(
       "Agenciamiento SIA (COP)", min_value=0.0, value=450000.0, step=50000.0
   )
@@ -707,7 +748,7 @@ datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
 
 # ==================== PRESENTACIÓN DE RESULTADOS ====================
 st.divider()
-st.subheader("📈 Resumen de Resultados")
+titulo("resultados", "Resumen de Resultados")
 
 m1, m2, m3, m4 = st.columns(4)
 
@@ -759,7 +800,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 if es_pro:
   st.info(
-      f"💱 **Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
+      f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
       f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):**"
       f" `{num(costo_total_ves, 2)} VES`"
   )
@@ -810,7 +851,7 @@ with col_table:
 
 # ==================== ACCIONES Y REPORTES ====================
 st.divider()
-st.subheader("📲 Acciones Directas")
+titulo("acciones", "Acciones Directas")
 st.caption(
     f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
     f" {datos_cotizacion['origen_trm']}"
@@ -834,8 +875,8 @@ c1, c2, c3 = st.columns([1, 1, 1])
 
 with c1:
   st.markdown(
-      f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">💬'
-      " Contactar por WhatsApp</a>",
+      f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">'
+      f"{icono('acciones', 20)}&nbsp; Contactar por WhatsApp</a>",
       unsafe_allow_html=True,
   )
 
@@ -849,7 +890,7 @@ with c2:
     if pdf_bytes:
       nombre_seguro = re.sub(r"[^A-Za-z0-9_-]+", "_", producto).strip("_")
       st.download_button(
-          label="📄 Descargar Cotización PDF (Pro)",
+          label="Descargar Cotización PDF (Pro)",
           data=pdf_bytes,
           file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
           mime="application/pdf",
@@ -857,7 +898,7 @@ with c2:
       )
   else:
     st.button(
-        "📄 Descargar PDF (Licencia Pro 🔒)",
+        "Descargar PDF (requiere licencia Pro)",
         disabled=True,
         width="stretch",
     )
@@ -866,7 +907,7 @@ with c3:
   df_export = pd.DataFrame([fila_csv(datos_cotizacion)])
   csv = df_export.to_csv(index=False).encode("utf-8-sig")  # BOM: Excel lee bien las tildes
   st.download_button(
-      label="📥 Exportar a CSV",
+      label="Exportar a CSV",
       data=csv,
       file_name=f"{datos_cotizacion['codigo']}.csv",
       mime="text/csv",

@@ -78,7 +78,7 @@ def test_validar_rechaza_respuesta_inesperada(monkeypatch):
 
 # ---------- integración con la app ----------
 def _abrir_pro(at, clave):
-  at.sidebar.radio[0].set_value("Pro / Premium ⭐").run()
+  at.sidebar.radio[0].set_value("Pro / Premium").run()
   at.sidebar.text_input[0].set_value(clave).run()
   return at
 
