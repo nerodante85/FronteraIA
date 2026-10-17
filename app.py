@@ -198,6 +198,12 @@ DATABASE_NANDINA = {
     },
 }
 
+# Partidas cuyo arancel/IVA ya fueron validados por un agente de aduanas.
+# Formato: "codigo": {"fuente": "norma o arancel consultado", "vigencia": "AAAA-MM-DD"}
+# Mientras una partida no esté aquí, la interfaz la marca como "pendiente".
+# Ver docs/validacion-nandina.csv.
+PARTIDAS_VALIDADAS = {}
+
 
 # ==================== GENERACIÓN DE PDF CORREGIDA ====================
 _REEMPLAZOS_PDF = {
@@ -292,7 +298,8 @@ def generar_pdf_cotizacion(datos):
       5,
       "Nota: Este documento es una estimacion de costos proyectados para la"
       " operacion aduanera y logistica en la frontera de Cucuta. No constituye"
-      " una liquidacion oficial de la DIAN.",
+      " una liquidacion oficial de la DIAN. Los porcentajes de arancel e IVA"
+      " son valores de referencia y deben confirmarse con la normativa vigente.",
   )
 
   # Retorna los bytes directamente usando el API actualizado de fpdf2
@@ -391,6 +398,18 @@ with col_left:
     )
     def_arancel = partida_info["arancel"]
     def_iva = partida_info["iva"]
+    validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
+    if validacion:
+      st.caption(
+          f"✅ Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
+          f" Vigencia: {validacion['vigencia']}"
+      )
+    else:
+      st.warning(
+          "Arancel e IVA de **referencia**, pendientes de validación por un"
+          " agente de aduanas. Confírmalos con la normativa vigente antes de"
+          " operar; puedes ajustarlos en los campos de la derecha."
+      )
 
   unidades = st.number_input(
       "Cantidad de Unidades", min_value=1, value=1000, step=1
@@ -553,7 +572,7 @@ with col_chart:
       hole=0.4,
       color_discrete_sequence=["#38bdf8", "#f87171", "#818cf8"],
   )
-  st.plotly_chart(fig, use_container_width=True)
+  st.plotly_chart(fig, width="stretch")
 
 with col_table:
   st.markdown("#### Desglose de Liquidación")
@@ -578,7 +597,7 @@ with col_table:
       ],
   }
   st.dataframe(
-      pd.DataFrame(liquidacion_data), use_container_width=True, hide_index=True
+      pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
   )
 
 
@@ -637,13 +656,13 @@ with c2:
           data=pdf_bytes,
           file_name=f"cotizacion_{nombre_seguro or 'producto'}.pdf",
           mime="application/pdf",
-          use_container_width=True,
+          width="stretch",
       )
   else:
     st.button(
         "📄 Descargar PDF (Licencia Pro 🔒)",
         disabled=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 with c3:
@@ -660,5 +679,5 @@ with c3:
       data=csv,
       file_name="cotizacion.csv",
       mime="text/csv",
-      use_container_width=True,
+      width="stretch",
   )
