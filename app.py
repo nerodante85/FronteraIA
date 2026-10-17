@@ -29,87 +29,132 @@ TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 # ==================== INYECCIÓN CSS SEGURA ====================
 css_code = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Public+Sans:wght@400;600;800&display=swap');
+
+/* Design System FronteraIQ: tokens (claro por defecto, oscuro según el sistema) */
+:root {
+    --fiq-surface: #E8EDEB; --fiq-raised: #FBFCFB; --fiq-ink: #0B2527;
+    --fiq-muted: #3C5C5F; --fiq-signal: #F5B700; --fiq-on-signal: #0B2527;
+    --fiq-on-ink: #E8EDEB; --fiq-line: #9DB1B1; --fiq-focus: #1F4FD8;
+    --fiq-success: #166A3E; --fiq-critical: #B3261E;
+    --fiq-shadow: 8px 8px 0 #0B2527;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fiq-surface: #0B2527; --fiq-raised: #123638; --fiq-ink: #E8EDEB;
+        --fiq-muted: #B9CCCB; --fiq-on-ink: #0B2527; --fiq-line: #3C5C5F;
+        --fiq-focus: #7FA2FF; --fiq-success: #5BD08F; --fiq-critical: #FF8A80;
+        --fiq-shadow: 8px 8px 0 #000000;
+    }
+}
 
 html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'Public Sans', system-ui, sans-serif !important;
+}
+h1, h2, h3 {
+    font-family: 'Archivo', system-ui, sans-serif !important;
+    font-stretch: 125%;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
 }
 
 .hero-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: var(--fiq-ink);
     padding: 32px 40px;
-    border-radius: 20px;
-    color: #ffffff;
+    border-radius: 8px;
+    color: var(--fiq-on-ink);
     margin-bottom: 28px;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+    box-shadow: var(--fiq-shadow);
+    border: 2px solid var(--fiq-ink);
 }
 
 .hero-title {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-stretch: 125%;
     font-size: 32px;
     font-weight: 800;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.02em;
     margin-bottom: 6px;
-    color: #f8fafc;
+    color: var(--fiq-on-ink);
 }
 
 .hero-subtitle {
     font-size: 15px;
-    color: #94a3b8;
-    font-weight: 500;
+    color: var(--fiq-on-ink);
+    opacity: 0.8;
+    font-weight: 600;
 }
 
 .metric-card {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
+    background-color: var(--fiq-raised);
+    border: 2px solid var(--fiq-ink);
+    border-radius: 8px;
     padding: 22px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    color: var(--fiq-ink);
+}
+
+.metric-card.is-main {
+    box-shadow: var(--fiq-shadow);
+    background-color: var(--fiq-signal);
+    color: var(--fiq-on-signal);
 }
 
 .metric-label {
     font-size: 12px;
-    font-weight: 700;
-    color: #94a3b8;
+    font-weight: 800;
+    color: inherit;
+    opacity: 0.8;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
     margin-bottom: 8px;
 }
 
 .metric-value {
+    font-family: 'Archivo', system-ui, sans-serif;
     font-size: 26px;
     font-weight: 800;
-    color: #f8fafc;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
     margin-bottom: 4px;
 }
 
 .metric-subtext {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    color: #10b981;
+    color: inherit;
+    opacity: 0.85;
 }
 
 .whatsapp-btn {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff !important;
-    font-weight: 700;
-    padding: 14px 24px;
-    border-radius: 12px;
+    background: var(--fiq-signal);
+    color: var(--fiq-on-signal) !important;
+    font-weight: 800;
+    padding: 12px 24px;
+    min-height: 48px;
+    box-sizing: border-box;
+    border: 2px solid var(--fiq-ink);
+    border-radius: 6px;
     text-decoration: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 15px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
+.whatsapp-btn:focus-visible { outline: 3px solid var(--fiq-focus); outline-offset: 3px; }
 
 div[data-baseweb="input"] {
-    border-radius: 10px !important;
+    border-radius: 6px !important;
 }
 
-.stButton>button {
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    height: 48px !important;
+.stButton>button, .stDownloadButton>button {
+    border-radius: 6px !important;
+    border: 2px solid var(--fiq-ink) !important;
+    font-weight: 800 !important;
+    min-height: 48px !important;
 }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !important; outline-offset: 3px; }
 </style>
 """
 
@@ -658,7 +703,7 @@ m1, m2, m3, m4 = st.columns(4)
 
 m1.markdown(
     f"""
-    <div class="metric-card">
+    <div class="metric-card is-main">
         <div class="metric-label">Costo Total Landed</div>
         <div class="metric-value">$ {costo_total_landed_cop:,.0f}</div>
         <div class="metric-subtext">COP Puesto en Cúcuta</div>
@@ -671,8 +716,8 @@ m2.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Costo Unitario</div>
-        <div class="metric-value" style="color:#60a5fa;">$ {costo_unitario_cop:,.2f}</div>
-        <div class="metric-subtext" style="color:#94a3b8;">Por unidad importada</div>
+        <div class="metric-value">$ {costo_unitario_cop:,.2f}</div>
+        <div class="metric-subtext">Por unidad importada</div>
     </div>
 """,
     unsafe_allow_html=True,
@@ -682,8 +727,8 @@ m3.markdown(
     f"""
     <div class="metric-card">
         <div class="metric-label">Impuestos DIAN</div>
-        <div class="metric-value" style="color:#f87171;">$ {total_tributos_cop:,.0f}</div>
-        <div class="metric-subtext" style="color:#94a3b8;">Arancel + IVA</div>
+        <div class="metric-value">$ {total_tributos_cop:,.0f}</div>
+        <div class="metric-subtext">Arancel + IVA</div>
     </div>
 """,
     unsafe_allow_html=True,
@@ -722,7 +767,7 @@ with col_chart:
       values="Monto_COP",
       names="Concepto",
       hole=0.4,
-      color_discrete_sequence=["#38bdf8", "#f87171", "#818cf8"],
+      color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
   )
   st.plotly_chart(fig, width="stretch")
 
