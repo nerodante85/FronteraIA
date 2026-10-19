@@ -1,5 +1,7 @@
 name: Probar consulta en vivo a la DIAN
 on:
+  push:
+    branches: [feat/consulta-dian-en-vivo]
   workflow_dispatch:
 jobs:
   probar:
