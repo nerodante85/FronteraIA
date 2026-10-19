@@ -93,7 +93,7 @@ def test_licencia_valida_activa_pro(monkeypatch, con_supabase, nueva_app):
   monkeypatch.setattr(requests, "post", lambda *a, **k: Resp({"valida": True, "nivel": "pro"}))
   at = _abrir_pro(nueva_app(), "FIQ-AAAA-BBBB-CCCC")
   assert at.sidebar.success
-  assert len(at.get("download_button")) == 2
+  assert len(at.get("download_button")) == 3
 
 
 @pytest.mark.parametrize(

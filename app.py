@@ -530,6 +530,108 @@ def validar_licencia_pro(clave):
 
 
 
+def calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct_margen):
+  """Liquida un embarque con varias mercancías.
+
+  Flete, seguro y gastos locales se reparten entre las líneas según su peso en el
+  FOB total (si el FOB total es 0, en partes iguales). Cada línea lleva su propio
+  arancel e IVA. Devuelve (lineas, totales); cada línea es un dict.
+  """
+  n = len(items)
+  fob_total = sum(max(float(i["fob_usd"]), 0.0) for i in items)
+  lineas = []
+  for i in items:
+    fob = max(float(i["fob_usd"]), 0.0)
+    unidades = max(float(i["unidades"]), 0.0)
+    peso = (fob / fob_total) if fob_total > 0 else (1 / n if n else 0)
+    cif_usd = fob + flete_usd * peso + seguro_usd * peso
+    cif_cop = cif_usd * trm
+    arancel_cop = cif_cop * (float(i["pct_arancel"]) / 100)
+    iva_cop = (cif_cop + arancel_cop) * (float(i["pct_iva"]) / 100)
+    gastos_cop = gastos_locales_cop * peso
+    landed_cop = cif_cop + arancel_cop + iva_cop + gastos_cop
+    unitario = landed_cop / unidades if unidades > 0 else 0.0
+    precio = unitario / (1 - pct_margen / 100) if pct_margen < 100 else 0.0
+    lineas.append({
+        "producto": i["producto"], "partida": i.get("partida", ""),
+        "peso_fob": peso, "unidades": unidades, "cif_cop": cif_cop,
+        "arancel_cop": arancel_cop, "iva_cop": iva_cop, "gastos_cop": gastos_cop,
+        "landed_cop": landed_cop, "unitario_cop": unitario, "precio_sugerido_cop": precio,
+    })
+  totales = {
+      k: sum(l[k] for l in lineas)
+      for k in ("cif_cop", "arancel_cop", "iva_cop", "gastos_cop", "landed_cop")
+  }
+  return lineas, totales
+
+
+def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_cop, pct_margen, def_arancel, def_iva):
+  """Cotización de un embarque con varias mercancías (función Pro)."""
+  st.divider()
+  titulo("mercancia", "Cotización multimercancía (Pro)", 3)
+  if not es_pro:
+    st.info(
+        "Cotiza un embarque con varias mercancías: cada producto con su arancel e IVA, "
+        "y el flete, el seguro y los gastos locales repartidos según el valor de cada una. "
+        "Disponible con licencia Pro."
+    )
+    return
+  st.caption(
+      "Usa el flete, el seguro, los gastos locales, el margen y la TRM de arriba. "
+      "El flete, el seguro y los gastos se reparten según el peso de cada línea en el FOB total."
+  )
+  base = pd.DataFrame([
+      {"Producto": "Mercancía 1", "Partida": "", "FOB (USD)": 5000.0, "Unidades": 100.0,
+       "Arancel (%)": float(def_arancel), "IVA (%)": float(def_iva)},
+      {"Producto": "Mercancía 2", "Partida": "", "FOB (USD)": 3000.0, "Unidades": 50.0,
+       "Arancel (%)": float(def_arancel), "IVA (%)": float(def_iva)},
+  ])
+  editado = st.data_editor(
+      base, num_rows="dynamic", key="embarque_items", width="stretch",
+      column_config={
+          "FOB (USD)": st.column_config.NumberColumn(min_value=0.0, step=100.0),
+          "Unidades": st.column_config.NumberColumn(min_value=0.0, step=1.0),
+          "Arancel (%)": st.column_config.NumberColumn(min_value=0.0, max_value=100.0, step=0.5),
+          "IVA (%)": st.column_config.NumberColumn(min_value=0.0, max_value=100.0, step=1.0),
+      },
+  )
+  items = []
+  for _, f in editado.iterrows():
+    if pd.isna(f["FOB (USD)"]) or f["FOB (USD)"] <= 0:
+      continue
+    items.append({
+        "producto": str(f["Producto"] or "Sin nombre"), "partida": str(f["Partida"] or ""),
+        "fob_usd": f["FOB (USD)"], "unidades": 0 if pd.isna(f["Unidades"]) else f["Unidades"],
+        "pct_arancel": 0 if pd.isna(f["Arancel (%)"]) else f["Arancel (%)"],
+        "pct_iva": 0 if pd.isna(f["IVA (%)"]) else f["IVA (%)"],
+    })
+  if not items:
+    st.warning("Agrega al menos una mercancía con valor FOB mayor que cero.")
+    return
+  lineas, totales = calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct_margen)
+  tabla = pd.DataFrame([{
+      "Producto": l["producto"], "% del FOB": f"{num(l['peso_fob'] * 100, 1)} %",
+      "CIF (COP)": num(l["cif_cop"]), "Arancel (COP)": num(l["arancel_cop"]),
+      "IVA (COP)": num(l["iva_cop"]), "Gastos locales (COP)": num(l["gastos_cop"]),
+      "Costo landed (COP)": num(l["landed_cop"]), "Costo unitario (COP)": num(l["unitario_cop"]),
+      "Precio sugerido (COP)": num(l["precio_sugerido_cop"]),
+  } for l in lineas])
+  st.dataframe(tabla, hide_index=True, width="stretch")
+  m1, m2, m3 = st.columns(3)
+  m1.metric("Costo landed del embarque", f"$ {num(totales['landed_cop'])}")
+  m2.metric("Tributos (arancel + IVA)", f"$ {num(totales['arancel_cop'] + totales['iva_cop'])}")
+  m3.metric("Gastos locales", f"$ {num(totales['gastos_cop'])}")
+  csv = pd.DataFrame([{
+      "producto": l["producto"], "partida": l["partida"], "peso_fob": l["peso_fob"],
+      "unidades": l["unidades"], "cif_cop": l["cif_cop"], "arancel_cop": l["arancel_cop"],
+      "iva_cop": l["iva_cop"], "gastos_locales_cop": l["gastos_cop"],
+      "costo_landed_cop": l["landed_cop"], "costo_unitario_cop": l["unitario_cop"],
+      "precio_sugerido_cop": l["precio_sugerido_cop"],
+  } for l in lineas]).to_csv(index=False).encode("utf-8-sig")
+  st.download_button("Exportar embarque a CSV", data=csv, file_name="embarque.csv",
+                     mime="text/csv", width="stretch")
+
+
 def calculadora():
   """Página de la calculadora de costo landed."""
   st.sidebar.page_link(_PAGINAS["inicio"], label="Volver al inicio", icon=":material/arrow_back:")
@@ -923,6 +1025,11 @@ def calculadora():
         mime="text/csv",
         width="stretch",
     )
+
+
+  seccion_multimercancia(
+      es_pro, trm, flete_usd, seguro_usd, total_gastos_locales_cop, pct_margen, def_arancel, def_iva
+  )
 
 
 # ==================== NAVEGACIÓN: INICIO (LANDING) + CALCULADORA ====================
