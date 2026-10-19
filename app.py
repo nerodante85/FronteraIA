@@ -15,6 +15,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
+from partidas_validadas import cargar_validaciones  # noqa: E402
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -306,10 +307,11 @@ DATABASE_NANDINA = {
 }
 
 # Partidas cuyo arancel/IVA ya fueron validados por un agente de aduanas.
-# Formato: "codigo": {"fuente": "norma o arancel consultado", "vigencia": "AAAA-MM-DD"}
+# Se carga de docs/validacion-nandina.csv (ver docs/GUIA-VALIDACION-ARANCELES.md).
 # Mientras una partida no esté aquí, la interfaz la marca como "pendiente".
-# Ver docs/validacion-nandina.csv.
-PARTIDAS_VALIDADAS = {}
+PARTIDAS_VALIDADAS, _PROBLEMAS_VALIDACION = cargar_validaciones(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "validacion-nandina.csv")
+)
 
 
 # ==================== GENERACIÓN DE PDF CORREGIDA ====================
@@ -714,9 +716,9 @@ def calculadora():
       partida_arancelaria = st.text_input(
           "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
       )
-      def_arancel = partida_info["arancel"]
-      def_iva = partida_info["iva"]
       validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
+      def_arancel = validacion["arancel"] if validacion else partida_info["arancel"]
+      def_iva = validacion["iva"] if validacion else partida_info["iva"]
       if validacion:
         st.caption(
             f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
