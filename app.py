@@ -578,6 +578,18 @@ def validar_licencia_pro(clave):
 
 
 
+def equivalencias_moneda(costo_cop, trm, bs_por_usd, cop_por_usdt):
+  """Costo landed en USDT y en bolívares.
+
+  Los bolívares se calculan vía dólares (costo COP / TRM × Bs por USD), con la tasa que
+  escribe el usuario; sin tasa no hay cifra (None) en lugar de un valor inventado.
+  """
+  usd = costo_cop / trm if trm and trm > 0 else None
+  ves = usd * bs_por_usd if usd is not None and bs_por_usd and bs_por_usd > 0 else None
+  usdt = costo_cop / cop_por_usdt if cop_por_usdt and cop_por_usdt > 0 else None
+  return {"usd": usd, "ves": ves, "usdt": usdt}
+
+
 def calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct_margen):
   """Liquida un embarque con varias mercancías.
 
@@ -722,15 +734,18 @@ def calculadora():
 
   if es_pro:
     titulo("cambio", "Tasa Fronteriza (Multi-moneda)", 3, st.sidebar)
-    tasa_ves_cop = st.sidebar.number_input(
-        "Tasa COP / Bolívares (VES)", value=0.08, step=0.01, format="%.4f"
+    bs_por_usd = st.sidebar.number_input(
+        "Bolívares por dólar (Bs/USD)",
+        min_value=0.0, value=None, step=1.0, format="%.2f", placeholder="Ej.: la tasa de hoy",
+        help="Escribe la tasa del día. La oficial (BCV) y la paralela pueden diferir bastante; "
+             "usa la que aplique a tu operación. Cambia a diario.",
     )
     tasa_usdt_cop = st.sidebar.number_input(
-        "Tasa COP / USDT (Cripto)", value=4050.0, step=10.0
+        "Tasa COP / USDT (Cripto)", min_value=1.0, value=float(trm), step=10.0
     )
   else:
-    tasa_ves_cop = 0.08
-    tasa_usdt_cop = 4050.0
+    bs_por_usd = None
+    tasa_usdt_cop = float(trm)
 
 
   # ==================== ENCABEZADO PRINCIPAL ====================
@@ -871,12 +886,9 @@ def calculadora():
       costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
   )
 
-  costo_total_ves = (
-      costo_total_landed_cop / tasa_ves_cop if tasa_ves_cop > 0 else 0
-  )
-  costo_total_usdt = (
-      costo_total_landed_cop / tasa_usdt_cop if tasa_usdt_cop > 0 else 0
-  )
+  equivalencias = equivalencias_moneda(costo_total_landed_cop, trm, bs_por_usd, tasa_usdt_cop)
+  costo_total_ves = equivalencias["ves"]
+  costo_total_usdt = equivalencias["usdt"]
 
 
   # ==================== DATOS DE LA COTIZACIÓN (TRAZABILIDAD) ====================
@@ -974,10 +986,13 @@ def calculadora():
   st.markdown("<br>", unsafe_allow_html=True)
 
   if es_pro:
+    texto_ves = (
+        f"`{num(costo_total_ves, 2)} VES`" if costo_total_ves is not None
+        else "ingresa la tasa Bs/USD en la barra lateral"
+    )
     st.info(
         f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
-        f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):**"
-        f" `{num(costo_total_ves, 2)} VES`"
+        f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):** {texto_ves}"
     )
 
   col_chart, col_table = st.columns([1, 1], gap="large")
