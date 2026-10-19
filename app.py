@@ -11,6 +11,7 @@ import plotly.express as px
 import requests
 import streamlit as st
 import sys
+import time
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,7 +24,7 @@ st.set_page_config(
     page_title="FronteraIQ Pro — Inteligencia Aduanera Cúcuta",
     page_icon=os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "favicon.png"),
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 def num(valor, decimales=0):
@@ -251,12 +252,30 @@ def _consultar_trm():
   return valor, fecha
 
 
-def obtener_trm_actual():
-  """Devuelve (valor, fecha, es_oficial). Si la consulta falla, usa el respaldo."""
+ESPERA_TRAS_FALLO_S = 60
+
+
+@st.cache_resource
+def _estado_trm():
+  """Estado compartido entre sesiones: cuándo se puede volver a intentar tras un fallo."""
+  return {"reintentar_desde": 0.0}
+
+
+def obtener_trm_actual(ahora=time.monotonic):
+  """Devuelve (valor, fecha, es_oficial). Si la consulta falla, usa el respaldo.
+
+  Tras un fallo no se vuelve a consultar durante ESPERA_TRAS_FALLO_S segundos: así una
+  fuente caída no añade hasta 5 s de espera a cada interacción. El fallo nunca se guarda
+  como si fuera una TRM; pasado ese tiempo se reintenta.
+  """
+  estado = _estado_trm()
+  if ahora() < estado["reintentar_desde"]:
+    return TRM_RESPALDO, "", False
   try:
     valor, fecha = _consultar_trm()
     return valor, fecha, True
   except Exception:
+    estado["reintentar_desde"] = ahora() + ESPERA_TRAS_FALLO_S
     return TRM_RESPALDO, "", False
 
 
@@ -393,9 +412,17 @@ def lineas_liquidacion(d):
   ]
 
 
+def texto_para_csv(valor):
+  """Neutraliza la inyección de fórmulas: Excel interpreta como fórmula un texto que
+  empiece por = + - @ (o tabulación / retorno). Se antepone un apóstrofo."""
+  if isinstance(valor, str) and valor[:1] in ("=", "+", "-", "@", "\t", "\r"):
+    return "'" + valor
+  return valor
+
+
 def fila_csv(d):
   """Una fila de CSV con todo lo necesario para reconstruir la cotización."""
-  return {
+  return {k: texto_para_csv(v) for k, v in {
       "Codigo cotizacion": d["codigo"],
       "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
       "Producto": d["producto"],
@@ -421,7 +448,7 @@ def fila_csv(d):
       "Costo unitario COP": d["costo_unitario_cop"],
       "Margen %": d["pct_margen"],
       "Precio sugerido unitario COP": d["precio_sugerido_unitario_cop"],
-  }
+  }.items()}
 
 
 def generar_pdf_cotizacion(datos):
@@ -567,8 +594,10 @@ def calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct
     peso = (fob / fob_total) if fob_total > 0 else (1 / n if n else 0)
     cif_usd = fob + flete_usd * peso + seguro_usd * peso
     cif_cop = cif_usd * trm
-    arancel_cop = cif_cop * (float(i["pct_arancel"]) / 100)
-    iva_cop = (cif_cop + arancel_cop) * (float(i["pct_iva"]) / 100)
+    pct_arancel = min(max(float(i["pct_arancel"]), 0.0), 100.0)
+    pct_iva = min(max(float(i["pct_iva"]), 0.0), 100.0)
+    arancel_cop = cif_cop * (pct_arancel / 100)
+    iva_cop = (cif_cop + arancel_cop) * (pct_iva / 100)
     gastos_cop = gastos_locales_cop * peso
     landed_cop = cif_cop + arancel_cop + iva_cop + gastos_cop
     unitario = landed_cop / unidades if unidades > 0 else 0.0
@@ -611,8 +640,8 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
   editado = st.data_editor(
       base, num_rows="dynamic", key="embarque_items", width="stretch",
       column_config={
-          "FOB (USD)": st.column_config.NumberColumn(min_value=0.0, step=100.0),
-          "Unidades": st.column_config.NumberColumn(min_value=0.0, step=1.0),
+          "FOB (USD)": st.column_config.NumberColumn(min_value=0.0, max_value=1_000_000_000.0, step=100.0),
+          "Unidades": st.column_config.NumberColumn(min_value=0.0, max_value=1_000_000_000.0, step=1.0),
           "Arancel (%)": st.column_config.NumberColumn(min_value=0.0, max_value=100.0, step=0.5),
           "IVA (%)": st.column_config.NumberColumn(min_value=0.0, max_value=100.0, step=1.0),
       },
@@ -644,7 +673,8 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
   m2.metric("Tributos (arancel + IVA)", f"$ {num(totales['arancel_cop'] + totales['iva_cop'])}")
   m3.metric("Gastos locales", f"$ {num(totales['gastos_cop'])}")
   csv = pd.DataFrame([{
-      "producto": l["producto"], "partida": l["partida"], "peso_fob": l["peso_fob"],
+      "producto": texto_para_csv(l["producto"]), "partida": texto_para_csv(l["partida"]),
+      "peso_fob": l["peso_fob"],
       "unidades": l["unidades"], "cif_cop": l["cif_cop"], "arancel_cop": l["arancel_cop"],
       "iva_cop": l["iva_cop"], "gastos_locales_cop": l["gastos_cop"],
       "costo_landed_cop": l["landed_cop"], "costo_unitario_cop": l["unitario_cop"],
@@ -757,18 +787,18 @@ def calculadora():
         )
 
     unidades = st.number_input(
-        "Cantidad de Unidades", min_value=1, value=1000, step=1
+        "Cantidad de Unidades", min_value=1, max_value=1_000_000_000, value=1000, step=1
     )
 
     titulo("valores", "Valores de la Carga (USD)", 4)
     fob_usd = st.number_input(
-        "Valor FOB Total (USD)", min_value=0.0, value=10000.0, step=100.0
+        "Valor FOB Total (USD)", min_value=0.0, max_value=1_000_000_000.0, value=10000.0, step=100.0
     )
     flete_usd = st.number_input(
-        "Flete Internacional (USD)", min_value=0.0, value=1200.0, step=50.0
+        "Flete Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=1200.0, step=50.0
     )
     seguro_usd = st.number_input(
-        "Seguro Internacional (USD)", min_value=0.0, value=150.0, step=10.0
+        "Seguro Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=150.0, step=10.0
     )
 
   with col_right:
@@ -789,21 +819,27 @@ def calculadora():
       )
 
     titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
+    st.caption(
+        "Ingresa estos gastos con su IVA incluido. Si tu negocio no puede descontar ese IVA,"
+        " es parte de tu costo real."
+    )
     agenciamiento_cop = st.number_input(
-        "Agenciamiento SIA (COP)", min_value=0.0, value=450000.0, step=50000.0
+        "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0
     )
     bodegaje_cop = st.number_input(
-        "Bodegaje / Depósito (COP)", min_value=0.0, value=300000.0, step=25000.0
+        "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0
     )
     transporte_local_cop = st.number_input(
         "Transporte Terrestre Local (COP)",
         min_value=0.0,
+        max_value=1_000_000_000_000.0,
         value=800000.0,
         step=50000.0,
     )
     otros_gastos_cop = st.number_input(
         "Otros Gastos / Inspecciones (COP)",
         min_value=0.0,
+        max_value=1_000_000_000_000.0,
         value=200000.0,
         step=25000.0,
     )

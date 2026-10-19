@@ -11,7 +11,7 @@ EMISION = datetime(2026, 10, 17, 9, 5, tzinfo=ZONA)
 
 F = cargar_funciones(
     "CAMPOS_CODIGO", "codigo_cotizacion", "origen_trm", "estado_aranceles",
-    "lineas_liquidacion", "fila_csv", "generar_pdf_cotizacion", "_texto_pdf",
+    "lineas_liquidacion", "fila_csv", "texto_para_csv", "generar_pdf_cotizacion", "_texto_pdf",
     "_REEMPLAZOS_PDF", "num", "ICONOS", "icono",
 )
 
@@ -158,3 +158,18 @@ def test_iconos_son_svg_validos():
     svg = F["icono"](nombre)
     assert "currentColor" in svg
     ET.fromstring(svg)  # XML bien formado
+
+
+# --- CSV: inyección de fórmulas ---------------------------------------------
+@pytest.mark.parametrize("texto", ['=HYPERLINK("http://x","y")', "+1+1", "-2+3", "@SUMA(A1)", "\tcmd"])
+def test_el_csv_neutraliza_formulas(texto):
+  assert F["texto_para_csv"](texto) == "'" + texto
+  fila = F["fila_csv"](datos_base(producto=texto, partida=texto))
+  assert fila["Producto"] == "'" + texto and fila["Partida"] == "'" + texto
+
+
+def test_el_csv_no_altera_textos_normales_ni_numeros():
+  assert F["texto_para_csv"]("Camisetas de algodón") == "Camisetas de algodón"
+  assert F["texto_para_csv"](-5.0) == -5.0 and F["texto_para_csv"](1000) == 1000
+  fila = F["fila_csv"](datos_base())
+  assert fila["Producto"] == "Camisetas de algodón" and fila["FOB USD"] == 10000.0

@@ -43,6 +43,7 @@ def respuesta_trm(valor=TRM_PRUEBA, desde="2026-10-16T00:00:00.000"):
 def entorno_aislado(monkeypatch):
   """Sin red, sin caché compartida y sin clave Pro heredada del entorno."""
   st.cache_data.clear()
+  st.cache_resource.clear()
   monkeypatch.delenv("PRO_LICENSE_KEY", raising=False)
   monkeypatch.delenv("SUPABASE_URL", raising=False)
   monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
@@ -51,6 +52,7 @@ def entorno_aislado(monkeypatch):
   monkeypatch.setattr(requests, "get", lambda *a, **k: respuesta_trm())
   yield
   st.cache_data.clear()
+  st.cache_resource.clear()
 
 
 @pytest.fixture

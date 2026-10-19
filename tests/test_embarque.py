@@ -68,3 +68,9 @@ def test_la_seccion_muestra_aviso_pro_a_usuarios_gratis(monkeypatch):
   assert "Cotización multimercancía" in texto
   assert "Disponible con licencia Pro" in texto
   assert len(at.get("arrow_data_frame")) == 0
+
+
+def test_los_porcentajes_se_limitan_a_0_100_en_el_calculo():
+  lineas, _ = calcular([item("A", 1000, 1, -50, 150)], 0, 0, 4000, 0, 0)
+  assert lineas[0]["arancel_cop"] == 0
+  assert lineas[0]["iva_cop"] == pytest.approx(4000000)  # IVA 100 % sobre 4.000.000
