@@ -7,11 +7,44 @@ PARTIDA = "Confecciones / Camisetas de Algodón"
 AVISO = "pendientes de validación"
 
 
-def test_partida_de_la_tabla_muestra_aviso_de_referencia(nueva_app):
-  at = nueva_app()
+def _app_con_csv(tmp_path, ruta_csv):
+  codigo = open(APP_PATH, encoding="utf-8").read()
+  modificado = codigo.replace(
+      'os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "validacion-nandina.csv")',
+      repr(str(ruta_csv)),
+  )
+  assert modificado != codigo
+  ruta = tmp_path / "app_csv.py"
+  ruta.write_text(modificado, encoding="utf-8")
+  return AppTest.from_file(str(ruta), default_timeout=60).run()
+
+
+def test_partida_de_la_tabla_sin_validacion_muestra_aviso_de_referencia(tmp_path):
+  at = _app_con_csv(tmp_path, tmp_path / "no_existe.csv")
   at.selectbox[0].set_value(PARTIDA).run()
   assert not at.exception
   assert any(AVISO in w.value for w in at.warning)
+
+
+def test_las_partidas_de_referencia_ya_estan_confirmadas_con_la_dian(nueva_app):
+  at = nueva_app()
+  at.selectbox[0].set_value(PARTIDA).run()
+  assert not at.exception
+  assert not any(AVISO in w.value for w in at.warning)
+  assert any("DIAN" in c.value for c in at.caption)
+
+
+def test_calzado_usa_el_arancel_confirmado_por_la_dian(nueva_app):
+  at = nueva_app()
+  at.selectbox[0].set_value("Calzado con Suela de Caucho / Cuero").run()
+  assert next(n for n in at.number_input if n.label == "Arancel (%)").value == 15.0
+
+
+def test_portatiles_muestra_la_condicion_de_iva_por_uvt(nueva_app):
+  at = nueva_app()
+  at.selectbox[0].set_value("Computadores Portátiles / Laptops").run()
+  assert next(n for n in at.number_input if n.label == "IVA (%)").value == 19.0
+  assert any("50 UVT" in i.value for i in at.info)
 
 
 def test_opcion_personalizada_no_muestra_aviso_de_tabla(nueva_app):
