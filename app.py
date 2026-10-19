@@ -296,7 +296,7 @@ DATABASE_NANDINA = {
     },
     "Calzado con Suela de Caucho / Cuero": {
         "codigo": "6403.99.90.00",
-        "arancel": 35.0,
+        "arancel": 15.0,
         "iva": 19.0,
     },
     "Teléfonos Celulares / Smartphones": {
@@ -307,11 +307,16 @@ DATABASE_NANDINA = {
     "Computadores Portátiles / Laptops": {
         "codigo": "8471.30.00.00",
         "arancel": 0.0,
+        "iva": 19.0,
+    },
+    "Arroz Blanqueado - Grano Corto o Mediano": {
+        "codigo": "1006.30.00.10",
+        "arancel": 15.0,
         "iva": 0.0,
     },
-    "Arroz Blanqueado / Pulido": {
-        "codigo": "1006.30.00.00",
-        "arancel": 15.0,
+    "Arroz Blanqueado - Los Demás Granos": {
+        "codigo": "1006.30.00.90",
+        "arancel": 80.0,
         "iva": 0.0,
     },
     "Repuestos y Autopartes": {
@@ -319,9 +324,9 @@ DATABASE_NANDINA = {
         "arancel": 10.0,
         "iva": 19.0,
     },
-    "Medicamentos de Uso Humano": {
-        "codigo": "3004.90.99.00",
-        "arancel": 0.0,
+    "Medicamentos de Uso Humano - Los Demás": {
+        "codigo": "3004.90.29.00",
+        "arancel": 10.0,
         "iva": 0.0,
     },
 }
@@ -794,6 +799,8 @@ def calculadora():
             f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
             f" Vigencia: {validacion['vigencia']}"
         )
+        if validacion["condiciones"]:
+          st.info(f"**Condición de la tarifa:** {validacion['condiciones']}")
       else:
         st.warning(
             "Arancel e IVA de **referencia**, pendientes de validación por un"

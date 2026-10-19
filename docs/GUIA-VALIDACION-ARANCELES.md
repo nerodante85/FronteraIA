@@ -39,3 +39,12 @@ Las validaciones envejecen: conviene repetirlas cuando cambie el arancel y, como
 ## Alcance y responsabilidad
 La validación confirma los porcentajes de **referencia** de la tabla. La app es una
 estimación y no reemplaza la liquidación oficial de la DIAN ni la asesoría de la agencia.
+
+## Estado al 2026-10-19: contraste con la consulta oficial de la DIAN
+
+Las filas con `validado_por` "Consulta oficial DIAN" se contrastaron el 19-oct-2026 en la
+Consulta de Arancel en línea de la DIAN (MUISCA, tarifa general, régimen de importación).
+Falta la revisión del agente aduanero sobre la subpartida exacta de cada producto real, las
+rebajas por acuerdos comerciales y los requisitos de importación. Las partidas con arancel
+variable (azúcar, aceites) y las que la DIAN subdivide con tarifas distintas siguen como
+candidatas sin cifras hasta que el agente indique la subpartida.
