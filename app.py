@@ -16,6 +16,11 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
+import importlib  # noqa: E402
+import partidas_validadas as _pv  # noqa: E402
+if not (hasattr(_pv, "cargar_validaciones") and hasattr(_pv, "catalogo_ampliado")):
+  # Tras un redeploy, Streamlit Cloud puede conservar en memoria una versión antigua del módulo.
+  importlib.reload(_pv)
 from partidas_validadas import cargar_validaciones, catalogo_ampliado  # noqa: E402
 import analitica  # noqa: E402
 
