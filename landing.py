@@ -192,7 +192,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
     with st.container(key="plan-starter"):
       st.html("""<div class="fiq-land"><h3 class="l-h3" style="font-size:34px!important">Starter</h3><div class="l-num l-precio">$0 COP</div><div class="l-nota">siempre gratis</div>
 <p style="margin-top:16px;color:#26474A">Ideal para comerciantes e importadores que realizan cotizaciones ocasionales.</p>
-<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Calculadora de costos landed en tiempo real</li><li>Consulta automática de la TRM oficial</li><li>Selector de partidas arancelarias NANDINA, con estado de validación a la vista</li><li>Código de cotización y exportación a CSV</li><li>Enlace directo para pedir asesoría por WhatsApp</li></ul></div>""")
+<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Calculadora de costos landed en tiempo real</li><li>Consulta automática de la TRM oficial</li><li>Selector de partidas arancelarias NANDINA y consulta en vivo en la DIAN de cualquier subpartida (arancel variable y acuerdos por país de origen)</li><li>Código de cotización y exportación a CSV</li><li>Enlace directo para pedir asesoría por WhatsApp</li></ul></div>""")
       with st.container(key="cta-starter"):
         st.page_link(pagina_calculadora, label="Probar la calculadora gratis")
   with p2:
@@ -210,13 +210,13 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
     with st.container(key="plan-agencia"):
       st.html("""<div class="fiq-land"><h3 class="l-h3" style="font-size:34px!important">Agencia / Corporativo</h3><div class="l-num l-precio">$149.000 COP <small>/ mes</small></div><div class="l-nota">&nbsp;</div>
 <p style="margin-top:16px;color:#26474A">Diseñado para agencias de aduanas (SIA), depósitos y agentes de carga.</p>
-<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Todo lo del plan Pro, más:</li><li>Soporte prioritario y capacitación de uso</li><li>Próximamente: PDFs con el logo y los datos de tu agencia</li><li>Próximamente: múltiples licencias, hasta 5 ejecutivos comerciales</li></ul></div>""")
+<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Todo lo del plan Pro, más:</li><li>Soporte prioritario y capacitación de uso</li><li>Atención directa por WhatsApp para resolver dudas de tus operaciones</li></ul></div>""")
       with st.container(key="cta-agencia"):
         st.link_button("Hablar con un asesor", LINK_AGENCIA(), width="stretch")
 
   # LÍMITES + CTA FINAL + PIE
   st.html("""<div class="fiq-land" style="padding:72px 0"><h2 class="l-h2" style="font-size:40px!important">Lo que la app todavía no hace</h2>
-<p style="margin-top:12px;max-width:720px;color:#26474A">Es una estimación de costos, no una liquidación oficial de la DIAN. Los aranceles de la tabla están en validación con un agente de aduanas, y las exportaciones a Venezuela aún no están disponibles. Confirma siempre los porcentajes con la normativa vigente antes de cerrar una operación.</p></div>""")
+<p style="margin-top:12px;max-width:720px;color:#26474A">Es una estimación de costos, no una liquidación oficial de la DIAN. No clasifica tu mercancía: la subpartida la defines tú o tu agente de aduanas. Las exportaciones a Venezuela aún no están disponibles. Confirma siempre con tu agente antes de cerrar una operación.</p></div>""")
   with st.container(key="band-final"):
     st.html("""<div class="fiq-land"><h2 class="l-h2" style="font-size:clamp(40px,3.6vw,56px)!important;max-width:640px">Conoce el costo real antes de que llegue el contenedor.</h2><div style="height:28px"></div></div>""")
     with st.container(key="cta-final"):
