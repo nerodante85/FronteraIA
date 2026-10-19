@@ -34,6 +34,12 @@ def test_las_partidas_de_referencia_ya_estan_confirmadas_con_la_dian(nueva_app):
   assert any("DIAN" in c.value for c in at.caption)
 
 
+def test_se_muestra_el_descargo_de_clasificacion_de_subpartida(nueva_app):
+  at = nueva_app()
+  at.selectbox[0].set_value(PARTIDA).run()
+  assert any("no clasifica mercancías" in c.value for c in at.caption)
+
+
 def test_calzado_usa_el_arancel_confirmado_por_la_dian(nueva_app):
   at = nueva_app()
   at.selectbox[0].set_value("Calzado con Suela de Caucho / Cuero").run()
