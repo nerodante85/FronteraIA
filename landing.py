@@ -175,7 +175,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
 <div><h3 class="l-h3">TRM oficial, sin digitarla</h3><p>Se consulta cada hora en datos.gov.co y se muestra con su fecha de vigencia. Si la fuente no responde, la app te lo avisa en pantalla en lugar de usar un valor viejo en silencio.</p></div>
 <div><h3 class="l-h3">Código de cotización único</h3><p>Cada cotización lleva un código tipo FIQ-20261017-B43FD1, generado con los datos de la operación. Dos cotizaciones con los mismos datos el mismo día tienen el mismo código.</p></div>
 <div><h3 class="l-h3">PDF y CSV para enviar</h3><p>Reporte de cotización en PDF con TRM, origen de la TRM y desglose completo. Exporta también a CSV para llevar los números a tu contabilidad.</p></div>
-<div><h3 class="l-h3">Aranceles con estado honesto</h3><p>Las partidas de la tabla se marcan como pendientes de validación hasta que un agente de aduanas las confirme. Lo que aún no está verificado no se presenta como oficial.</p></div>
+<div><h3 class="l-h3">Aranceles con estado honesto</h3><p>Arancel e IVA salen de la Consulta de Arancel de la DIAN y cada cotización muestra la fuente y la fecha de consulta. Lo que aún no está verificado se marca como referencia. La subpartida de tu producto la defines tú o tu agente de aduanas.</p></div>
 </div></div>
 <div class="fiq-land" style="padding:16px 0 40px"><div class="fiq-quien">
 <div><h3 class="l-h3">Pymes y comerciantes</h3><p>Decide el precio de venta antes de pagar la importación, no después.</p></div>
