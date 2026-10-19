@@ -15,7 +15,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
-from partidas_validadas import cargar_validaciones  # noqa: E402
+from partidas_validadas import cargar_validaciones, catalogo_ampliado  # noqa: E402
 import analitica  # noqa: E402
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
@@ -313,6 +313,9 @@ DATABASE_NANDINA = {
 PARTIDAS_VALIDADAS, _PROBLEMAS_VALIDACION = cargar_validaciones(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "validacion-nandina.csv")
 )
+
+# Selector: las 7 de referencia + las partidas nuevas que un agente ya validó.
+CATALOGO_NANDINA = catalogo_ampliado(DATABASE_NANDINA, PARTIDAS_VALIDADAS)
 
 
 # ==================== GENERACIÓN DE PDF CORREGIDA ====================
@@ -720,9 +723,9 @@ def calculadora():
 
     producto_sel = st.selectbox(
         "Seleccionar o buscar tipo de producto",
-        list(DATABASE_NANDINA.keys()),
+        list(CATALOGO_NANDINA.keys()),
     )
-    partida_info = DATABASE_NANDINA[producto_sel]
+    partida_info = CATALOGO_NANDINA[producto_sel]
     if partida_info["codigo"]:
       registrar_evento("partida_elegida", partida_info["codigo"])
 

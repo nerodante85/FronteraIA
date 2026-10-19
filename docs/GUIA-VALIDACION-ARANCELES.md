@@ -2,7 +2,7 @@
 
 FronteraIQ Pro muestra arancel e IVA de **referencia** para 7 partidas. Mientras un agente
 de aduanas no las confirme, la app las marca como "pendientes de validación". Esta guía
-explica cómo validarlas en unos 30 minutos.
+explica cómo validarlas: las 7 de referencia en unos 30 minutos y, si puedes, las candidatas.
 
 ## Qué se pide
 Abrir `docs/validacion-nandina.csv` (se abre en Excel) y completar, por cada fila, estas
@@ -18,6 +18,9 @@ columnas. **Una fila sin todos los campos obligatorios no se considera validada.
 | `condiciones_especiales` | No | Gravamen mixto o específico, contingentes, salvaguardias, licencia previa, registro o permiso (INVIMA, ICA, etc.), tratados de libre comercio. |
 | `observaciones` | No | Cualquier aclaración, o si la subpartida de la app es incorrecta y cuál sería. |
 
+## Partidas nuevas (candidatas)
+Debajo de las 7 partidas hay 31 candidatas sin cifras (`arancel_app_pct` e `iva_app_pct` vacíos). No aparecen en la app mientras no se validen. Completa las mismas columnas obligatorias y, si la subpartida o el nombre no corresponden, corrígelos en esa misma fila. Las que no apliquen, déjalas en blanco. Puedes agregar filas con otras partidas que veas seguido en Cúcuta.
+
 ## Qué revisar en cada partida
 1. Que la **subpartida de 10 dígitos** corresponda al producto descrito. Si no, anótalo en `observaciones`.
 2. Que el arancel sea el **vigente a hoy** para importaciones desde terceros países.
@@ -28,6 +31,7 @@ columnas. **Una fila sin todos los campos obligatorios no se considera validada.
 Al fusionar el archivo, la app:
 - muestra la fuente y la vigencia en lugar del aviso "pendiente";
 - usa el arancel y el IVA validados como valores por defecto de esa partida;
+- agrega al selector las partidas candidatas que validaste;
 - si hay una fila incompleta o con datos inválidos, **no** la marca como validada.
 
 Las validaciones envejecen: conviene repetirlas cuando cambie el arancel y, como mínimo, una vez al año.

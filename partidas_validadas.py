@@ -54,8 +54,24 @@ def cargar_validaciones(ruta, hoy=None):
       problemas.append(f"Fila {n} ({codigo}): la vigencia {vigencia} está en el futuro")
       continue
     validadas[codigo] = {
+        "producto": (fila.get("producto") or "").strip(),
         "arancel": arancel, "iva": iva, "fuente": campos["fuente_normativa"],
         "vigencia": vigencia.isoformat(), "validado_por": campos["validado_por"],
         "condiciones": (fila.get("condiciones_especiales") or "").strip(),
     }
   return validadas, problemas
+
+
+def catalogo_ampliado(base, validadas):
+  """Tabla de partidas de la app: las de referencia más las nuevas ya validadas.
+
+  Una partida candidata del CSV solo entra al selector cuando un agente la validó (así
+  nunca se muestra un arancel sin respaldo). Las ya presentes en `base` no se duplican.
+  """
+  catalogo = dict(base)
+  codigos = {v["codigo"] for v in base.values() if v["codigo"]}
+  for codigo, v in sorted(validadas.items(), key=lambda kv: kv[1]["producto"].lower()):
+    if codigo in codigos or not v["producto"] or v["producto"] in catalogo:
+      continue
+    catalogo[v["producto"]] = {"codigo": codigo, "arancel": v["arancel"], "iva": v["iva"]}
+  return catalogo
