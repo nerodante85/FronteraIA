@@ -36,3 +36,12 @@ def test_reporta_subpartida_inexistente_y_lectura_vacia():
   assert "ya no existe" in comparar(_v(1.0, 1.0), lambda c: None)[0]
   d = comparar(_v(1.0, 1.0), lambda c: {"gravamen": [], "iva": []})
   assert len(d) == 2
+
+
+def test_un_csv_sin_partidas_validadas_no_da_exito(tmp_path, capsys):
+  from dian_verificador import main
+  csv = tmp_path / "v.csv"
+  csv.write_text("producto,subpartida,arancel_app_pct,iva_app_pct,arancel_validado_pct,iva_validado_pct,"
+                 "condiciones_especiales,fuente_normativa,fecha_vigencia,validado_por,observaciones\n"
+                 "A,6109.10.00.00,40,19,,,,,,,\n", encoding="utf-8")
+  assert main(str(csv)) == 2

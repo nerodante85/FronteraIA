@@ -95,7 +95,10 @@ def comparar(validadas, consulta):
 
 def main(ruta="docs/validacion-nandina.csv"):
   import requests
-  validadas, _ = cargar_validaciones(ruta)
+  validadas, problemas = cargar_validaciones(ruta)
+  if not validadas or problemas:  # un CSV vacío o dañado no puede dar un "todo coincide"
+    print(f"No hay partidas validadas que verificar o el CSV tiene problemas: {problemas}")
+    return 2
   sesion = requests.Session()
   sesion.headers["User-Agent"] = "Mozilla/5.0 (FronteraIQ verificador mensual)"
 
