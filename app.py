@@ -431,9 +431,12 @@ def bloque_dian_en_vivo():
       if not opciones:
         st.error("La DIAN no tiene subpartidas con ese código. Revísalo con tu agente de aduanas.")
         return None
-      elegido = st.selectbox("Subdivisión", opciones,
-                             format_func=lambda o: f"{dian_arancel.formatear_codigo(o[0])} — {o[1][:90]}")
-      codigo = elegido[0]
+      if len(opciones) == 1:
+        codigo = opciones[0][0]
+      else:
+        elegido = st.selectbox("Subdivisión", opciones,
+                               format_func=lambda o: f"{dian_arancel.formatear_codigo(o[0])} — {o[1][:90]}")
+        codigo = elegido[0]
     with st.spinner("Consultando la DIAN..."):
       consulta = dian_consulta(codigo)
   except dian_arancel.DianNoDisponible:
@@ -441,7 +444,8 @@ def bloque_dian_en_vivo():
                " y confírmalos con tu agente de aduanas.")
     return None
   if consulta is None:
-    st.error("Esa subpartida no existe en el Arancel de la DIAN.")
+    st.error(f"La subpartida {dian_arancel.formatear_codigo(codigo)} no existe en el Arancel de la DIAN."
+             " Escribe solo los primeros 6 u 8 dígitos para ver las subpartidas reales de esa partida.")
     return None
 
   st.caption(f"**{dian_arancel.formatear_codigo(consulta.codigo)}** — {consulta.descripcion}")
