@@ -189,4 +189,12 @@ def test_codigo_invalido_y_subpartida_inexistente(nueva_app, monkeypatch):
   at = _escribir(_app(monkeypatch, None), "123")
   assert any("6, 8 o 10 dígitos" in e.value for e in at.error)
   at = _escribir(_app(monkeypatch, None), "6109100010")
-  assert any("no existe" in e.value for e in at.error)
+  assert any("6109.10.00.10 no existe" in e.value and "6 u 8 dígitos" in e.value for e in at.error)
+
+
+def test_con_una_sola_subdivision_no_se_pide_elegir(monkeypatch):
+  monkeypatch.setattr(d.ClienteDian, "subdivisiones", lambda self, p: [("6109100000", "Camisetas")])
+  at = _app(monkeypatch, _consulta(codigo="6109100000"))
+  at = _escribir(at, "610910")
+  assert not any(s.label == "Subdivisión" for s in at.selectbox)
+  assert any("6109.10.00.00" in c.value for c in at.caption)
