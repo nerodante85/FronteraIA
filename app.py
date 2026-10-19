@@ -23,6 +23,7 @@ if not (hasattr(_pv, "cargar_validaciones") and hasattr(_pv, "catalogo_ampliado"
   importlib.reload(_pv)
 from partidas_validadas import cargar_validaciones, catalogo_ampliado  # noqa: E402
 import analitica  # noqa: E402
+import dian_arancel  # noqa: E402
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -385,8 +386,98 @@ def origen_trm(trm, trm_oficial, trm_fecha, es_oficial):
   return "Valor de respaldo, NO es la TRM oficial"
 
 
-def estado_aranceles(personalizada, ajustados, validacion):
+@st.cache_resource
+def cliente_dian():
+  return dian_arancel.ClienteDian()
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def dian_consulta(codigo):
+  return cliente_dian().consultar(codigo)
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def dian_subdivisiones(prefijo):
+  return cliente_dian().subdivisiones(prefijo)
+
+
+def etiqueta_iva(o):
+  condicion = o.producto or "Tarifa general"
+  return f"{o.porcentaje:g} %{' · ' + o.etiqueta.lower() if o.etiqueta else ''} — {condicion}"
+
+
+def etiqueta_acuerdo(a):
+  return f"{a.pais} — {a.acuerdo}: {a.porcentaje:g} %"
+
+
+def bloque_dian_en_vivo():
+  """Subpartida libre consultada en la DIAN. Devuelve (consulta, arancel, iva, origen) o None si hay que ingresar a mano."""
+  entrada = st.text_input(
+      "Subpartida Arancelaria (6, 8 o 10 dígitos)", value="", placeholder="6109.10.00.00",
+      help="Se consulta la tarifa vigente en el Arancel de Aduanas de la DIAN.",
+  )
+  if not entrada.strip():
+    st.caption("Escribe la subpartida para traer arancel e IVA de la DIAN, o ingrésalos a mano a la derecha.")
+    return None
+  try:
+    codigo = dian_arancel.normalizar_codigo(entrada)
+  except ValueError as error:
+    st.error(str(error))
+    return None
+  try:
+    if len(codigo) < 10:
+      with st.spinner("Buscando subdivisiones en la DIAN (puede tardar hasta un minuto)..."):
+        opciones = dian_subdivisiones(codigo)
+      if not opciones:
+        st.error("La DIAN no tiene subpartidas con ese código. Revísalo con tu agente de aduanas.")
+        return None
+      elegido = st.selectbox("Subdivisión", opciones,
+                             format_func=lambda o: f"{dian_arancel.formatear_codigo(o[0])} — {o[1][:90]}")
+      codigo = elegido[0]
+    with st.spinner("Consultando la DIAN..."):
+      consulta = dian_consulta(codigo)
+  except dian_arancel.DianNoDisponible:
+    st.warning("No pude consultar la DIAN ahora. Ingresa arancel e IVA a mano (valores de referencia 10 % / 19 %)"
+               " y confírmalos con tu agente de aduanas.")
+    return None
+  if consulta is None:
+    st.error("Esa subpartida no existe en el Arancel de la DIAN.")
+    return None
+
+  st.caption(f"**{dian_arancel.formatear_codigo(consulta.codigo)}** — {consulta.descripcion}")
+  arancel = consulta.arancel_aplicable
+  if consulta.arancel_variable is not None:
+    st.info(f"**Arancel variable vigente: {consulta.arancel_variable:g} %** (el general es"
+            f" {consulta.arancel_general:g} %). Cambia cada quincena según el precio de referencia.")
+  iva_opciones = sorted(consulta.iva, key=lambda o: -o.porcentaje)
+  iva = iva_opciones[0].porcentaje
+  if len(iva_opciones) > 1:
+    elegida = st.selectbox("IVA según la condición del producto", iva_opciones, format_func=etiqueta_iva)
+    iva = elegida.porcentaje
+    st.caption("Esa subpartida tiene tarifas de IVA distintas según el producto. Se propone la más alta;"
+               " elige la que corresponda a tu mercancía.")
+  origen = "Tarifa general"
+  if consulta.acuerdos:
+    sin = "Sin acuerdo (tarifa general)"
+    acuerdo = st.selectbox("País de origen / acuerdo comercial", [sin, *consulta.acuerdos],
+                           format_func=lambda a: a if a == sin else etiqueta_acuerdo(a))
+    if acuerdo != sin:
+      arancel = acuerdo.porcentaje
+      origen = etiqueta_acuerdo(acuerdo)
+      st.caption("La preferencia exige certificado de origen válido; sin él se paga la tarifa general.")
+  st.caption(f"Fuente: DIAN, Consulta de Arancel en línea (MUISCA) · consultado {date_hoy_texto()}")
+  return consulta, arancel, iva, origen
+
+
+def date_hoy_texto():
+  return datetime.now(ZONA_COLOMBIA).strftime("%Y-%m-%d")
+
+
+def estado_aranceles(personalizada, ajustados, validacion, dian=None):
   """Estado de los porcentajes de arancel e IVA usados en la cotización."""
+  if dian:
+    base = f"Consultados en vivo en la DIAN (MUISCA) el {date_hoy_texto()}. Tarifa: {dian}"
+    return base + (". Ajustados luego por el usuario" if ajustados else "")
   if personalizada:
     return "Ingresados por el usuario (partida personalizada)"
   if ajustados:
@@ -786,12 +877,17 @@ def calculadora():
 
     if producto_sel == "Personalizado / Otra partida":
       producto = st.text_input("Nombre / Referencia", value="Mercancía General")
-      partida_arancelaria = st.text_input(
-          "Subpartida Arancelaria", value="0000.00.00.00"
-      )
-      def_arancel = 10.0
-      def_iva = 19.0
+      en_vivo = bloque_dian_en_vivo()
+      if en_vivo:
+        consulta_dian, def_arancel, def_iva, origen_dian = en_vivo
+        partida_arancelaria = dian_arancel.formatear_codigo(consulta_dian.codigo)
+      else:
+        consulta_dian, origen_dian = None, None
+        partida_arancelaria = "0000.00.00.00"
+        def_arancel = 10.0
+        def_iva = 19.0
     else:
+      consulta_dian, origen_dian = None, None
       producto = producto_sel
       partida_arancelaria = st.text_input(
           "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
@@ -910,7 +1006,7 @@ def calculadora():
 
   # ==================== DATOS DE LA COTIZACIÓN (TRAZABILIDAD) ====================
   es_personalizada = producto_sel == "Personalizado / Otra partida"
-  porcentajes_ajustados = (not es_personalizada) and (
+  porcentajes_ajustados = (consulta_dian is not None or not es_personalizada) and (
       pct_arancel != def_arancel or pct_iva != def_iva
   )
   emision = datetime.now(ZONA_COLOMBIA)
@@ -945,6 +1041,7 @@ def calculadora():
           es_personalizada,
           porcentajes_ajustados,
           None if es_personalizada else PARTIDAS_VALIDADAS.get(partida_info["codigo"]),
+          None if consulta_dian is None else f"{origen_dian}, subpartida {partida_arancelaria}",
       ),
   }
   datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
