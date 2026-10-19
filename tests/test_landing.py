@@ -24,3 +24,13 @@ def test_la_demo_usa_la_misma_cadena_de_calculo(monkeypatch):
   # TRM simulada 4.000, FOB 10.000, arancel 10 %: igual que la calculadora (61.178.600)
   texto = " ".join(str(e.value) for e in at.get("html"))
   assert "$ 61.178.600" in texto
+
+
+def test_los_planes_no_prometen_lo_que_no_existe(monkeypatch):
+  at = _landing(monkeypatch)
+  texto = " ".join(str(e.value) for e in at.get("html"))
+  # El selector NANDINA es gratis: va en Starter, no en Pro. La multimercancía sí es Pro.
+  inicio_pro = texto.index("Todo lo del plan Starter")
+  assert "Selector de partidas arancelarias" in texto[:inicio_pro]
+  assert "Selector de partidas arancelarias" not in texto[inicio_pro:]
+  assert "Cotización multimercancía" in texto[inicio_pro:]

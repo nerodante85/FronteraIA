@@ -25,7 +25,7 @@ def test_clave_incorrecta_no_activa(monkeypatch, nueva_app):
 
 def test_clave_correcta_activa_pro(app_pro):
   assert app_pro.sidebar.success
-  assert len(app_pro.get("download_button")) == 2  # PDF y CSV
+  assert len(app_pro.get("download_button")) == 3  # PDF, CSV y CSV del embarque
 
 
 def test_la_clave_antigua_ya_no_existe(nueva_app):

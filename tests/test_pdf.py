@@ -13,13 +13,13 @@ def test_pdf_pro_con_nombres_especiales(app_pro, nombre):
   campo = next(t for t in app_pro.text_input if t.label == "Nombre / Referencia")
   campo.set_value(nombre).run()
   assert not app_pro.exception
-  assert len(app_pro.get("download_button")) == 2
+  assert len(app_pro.get("download_button")) == 3
 
 
 def test_pdf_pro_con_partida_de_la_tabla(app_pro):
   app_pro.selectbox[0].set_value("Calzado con Suela de Caucho / Cuero").run()
   assert not app_pro.exception
-  assert len(app_pro.get("download_button")) == 2
+  assert len(app_pro.get("download_button")) == 3
 
 
 def test_plan_gratuito_solo_tiene_csv(nueva_app):

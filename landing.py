@@ -192,7 +192,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
     with st.container(key="plan-starter"):
       st.html("""<div class="fiq-land"><h3 class="l-h3" style="font-size:34px!important">Starter</h3><div class="l-num l-precio">$0 COP</div><div class="l-nota">siempre gratis</div>
 <p style="margin-top:16px;color:#26474A">Ideal para comerciantes e importadores que realizan cotizaciones ocasionales.</p>
-<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Calculadora de costos landed en tiempo real</li><li>Consulta automática de la TRM oficial</li><li>Código de cotización y exportación a CSV</li><li>Enlace directo para pedir asesoría por WhatsApp</li></ul></div>""")
+<ul style="margin:18px 0 0;padding-left:20px;color:#26474A;display:grid;gap:8px"><li>Calculadora de costos landed en tiempo real</li><li>Consulta automática de la TRM oficial</li><li>Selector de partidas arancelarias NANDINA, con estado de validación a la vista</li><li>Código de cotización y exportación a CSV</li><li>Enlace directo para pedir asesoría por WhatsApp</li></ul></div>""")
       with st.container(key="cta-starter"):
         st.page_link(pagina_calculadora, label="Probar la calculadora gratis")
   with p2:
@@ -200,7 +200,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
       st.html("""<div class="fiq-land"><div style="display:inline-block;background:#0B2527;color:#F5B700;font-weight:700;font-size:13px;padding:4px 10px;border-radius:3px">Recomendado para importadores frecuentes</div>
 <h3 class="l-h3" style="font-size:34px!important;margin-top:12px!important">Pro Fronterizo</h3><div class="l-num l-precio">$39.000 COP <small>/ mes</small></div><div style="font-size:14px">o $390.000 COP al año: ahorras 2 meses</div>
 <p style="margin-top:16px">Para comerciantes, importadores frecuentes y consultores que necesitan cotizar rápido y de forma formal.</p>
-<ul style="margin:18px 0 0;padding-left:20px;display:grid;gap:8px"><li>Todo lo del plan Starter, más:</li><li>Descarga ilimitada de cotizaciones en PDF para entregar a tus clientes</li><li>Conversor multimoneda: COP, USD, bolívares (VES) y USDT, con tasas referenciales</li><li>Selector de partidas arancelarias NANDINA, con estado de validación a la vista</li></ul></div>""")
+<ul style="margin:18px 0 0;padding-left:20px;display:grid;gap:8px"><li>Todo lo del plan Starter, más:</li><li>Descarga ilimitada de cotizaciones en PDF para entregar a tus clientes</li><li>Conversor multimoneda: COP, USD, bolívares (VES) y USDT, con tasas referenciales</li><li>Cotización multimercancía: varias mercancías en un embarque, cada una con su arancel e IVA, y flete, seguro y gastos repartidos según su valor</li></ul></div>""")
       with st.container(key="cta-pro-m"):
         st.link_button("Suscribirme: $39.000 al mes", LINK_PRO_MENSUAL(), width="stretch")
       with st.container(key="cta-pro-a"):
