@@ -4,10 +4,17 @@ import re
 import pytest
 import requests
 
+import analitica
 import licencias
 
 URL = "https://proyecto.supabase.co"
 LLAVE = "llave-de-servicio-de-prueba"
+
+
+@pytest.fixture(autouse=True)
+def _sin_analitica(monkeypatch):
+  """Estas pruebas simulan requests.post para las licencias; la medición no debe consumir esas respuestas."""
+  monkeypatch.setattr(analitica, "registrar", lambda *a, **k: False)
 
 
 class Resp:

@@ -16,6 +16,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import licencias  # noqa: E402  (licencias por cliente, ver supabase/)
 from partidas_validadas import cargar_validaciones  # noqa: E402
+import analitica  # noqa: E402
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -501,6 +502,21 @@ def _config_licencias():
   return (url, llave) if url and llave else None
 
 
+def registrar_evento(evento, dato=None):
+  """Mide uso anónimo (una vez por sesión y evento/dato). Nunca interrumpe la app."""
+  try:
+    if "sesion_id" not in st.session_state:
+      st.session_state["sesion_id"] = uuid.uuid4().hex
+    visto = st.session_state.setdefault("_eventos_enviados", set())
+    clave = (evento, dato)
+    if clave in visto:
+      return
+    visto.add(clave)
+    analitica.registrar(evento, st.session_state["sesion_id"], _config_licencias(), dato)
+  except Exception:
+    pass
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _consultar_licencia(clave, sesion, url, llave):
   """Valida contra Supabase. Si el servicio falla LANZA la excepción para no cachear el error;
@@ -571,6 +587,7 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
   """Cotización de un embarque con varias mercancías (función Pro)."""
   st.divider()
   titulo("mercancia", "Cotización multimercancía (Pro)", 3)
+  registrar_evento("multimercancia_vista" if es_pro else "multimercancia_teaser")
   if not es_pro:
     st.info(
         "Cotiza un embarque con varias mercancías: cada producto con su arancel e IVA, "
@@ -631,11 +648,13 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
       "precio_sugerido_cop": l["precio_sugerido_cop"],
   } for l in lineas]).to_csv(index=False).encode("utf-8-sig")
   st.download_button("Exportar embarque a CSV", data=csv, file_name="embarque.csv",
-                     mime="text/csv", width="stretch")
+                     mime="text/csv", width="stretch",
+                     on_click=registrar_evento, args=("descarga_csv_embarque",))
 
 
 def calculadora():
   """Página de la calculadora de costo landed."""
+  registrar_evento("calculadora_vista")
   st.sidebar.page_link(_PAGINAS["inicio"], label="Volver al inicio", icon=":material/arrow_back:")
   # ==================== BARRA LATERAL (SIDEBAR) ====================
   titulo("acceso", "Acceso de Usuario", 2, st.sidebar)
@@ -649,6 +668,7 @@ def calculadora():
     elif clave_pro:
       es_pro, error_licencia = validar_licencia_pro(clave_pro)
       if es_pro:
+        registrar_evento("licencia_pro_activada")
         st.sidebar.success("Licencia Pro activa")
       else:
         st.sidebar.warning(error_licencia)
@@ -703,6 +723,8 @@ def calculadora():
         list(DATABASE_NANDINA.keys()),
     )
     partida_info = DATABASE_NANDINA[producto_sel]
+    if partida_info["codigo"]:
+      registrar_evento("partida_elegida", partida_info["codigo"])
 
     if producto_sel == "Personalizado / Otra partida":
       producto = st.text_input("Nombre / Referencia", value="Mercancía General")
@@ -1009,6 +1031,8 @@ def calculadora():
             file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
             mime="application/pdf",
             width="stretch",
+            on_click=registrar_evento,
+            args=("descarga_pdf",),
         )
     else:
       st.button(
@@ -1026,6 +1050,8 @@ def calculadora():
         file_name=f"{datos_cotizacion['codigo']}.csv",
         mime="text/csv",
         width="stretch",
+        on_click=registrar_evento,
+        args=("descarga_csv",),
     )
 
 
@@ -1041,6 +1067,7 @@ _PAGINAS = {}
 
 
 def inicio():
+  registrar_evento("landing_vista")
   landing.mostrar_landing(_PAGINAS["calculadora"], trm_oficial, trm_fecha, trm_es_oficial)
 
 
