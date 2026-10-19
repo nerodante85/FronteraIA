@@ -50,3 +50,29 @@ def test_todas_las_partidas_tienen_datos_completos(nueva_app):
   for opcion in at.selectbox[0].options:
     at.selectbox[0].set_value(opcion).run()
     assert not at.exception, opcion
+
+
+def test_partida_nueva_aparece_en_el_selector_solo_cuando_esta_validada(tmp_path):
+  codigo = open(APP_PATH, encoding="utf-8").read()
+  cab = ("producto,subpartida,arancel_app_pct,iva_app_pct,arancel_validado_pct,iva_validado_pct,"
+         "condiciones_especiales,fuente_normativa,fecha_vigencia,validado_por,observaciones\n")
+
+  def opciones(filas):
+    csv = tmp_path / "v.csv"
+    csv.write_text(cab + filas, encoding="utf-8")
+    ruta = tmp_path / "app_x.py"
+    ruta.write_text(codigo.replace(
+        'os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "validacion-nandina.csv")',
+        repr(str(csv))), encoding="utf-8")
+    at = AppTest.from_file(str(ruta), default_timeout=60).run()
+    assert not at.exception
+    return at, list(at.selectbox[0].options)
+
+  _, sin_validar = opciones("Pantalones de algodón,6203.42.00.00,,,,,,,,,\n")
+  assert "Pantalones de algodón" not in sin_validar
+  at, validada = opciones("Pantalones de algodón,6203.42.00.00,,,12,19,,Decreto X,2026-10-01,Ana,\n")
+  assert "Pantalones de algodón" in validada
+  at.selectbox[0].set_value("Pantalones de algodón").run()
+  assert not at.exception
+  assert next(n for n in at.number_input if n.label == "Arancel (%)").value == 12.0
+  assert not any(AVISO in w.value for w in at.warning)
