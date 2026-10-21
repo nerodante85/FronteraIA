@@ -239,6 +239,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
     .st-key-quote { position: static; }
     .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
+    /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
+    [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
+    .quote-barra, .quote-leyenda { display: none; }
+    .quote .metric-value.is-hero { font-size: clamp(34px, 11vw, 48px); }
 }
 @media (prefers-reduced-motion: reduce) {
     [data-testid^="stBaseButton"], .whatsapp-btn, .whatsapp-btn .fiq-icono, [data-baseweb="input"], [data-baseweb="select"] > div { transition: none; }
