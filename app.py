@@ -40,7 +40,7 @@ def num(valor, decimales=0):
 
 
 # ==================== ICONOS FRONTERAIQ ====================
-# Set propio (ver Design System): rejilla de 24 px, trazo de 2 px, esquinas rectas.
+# Set propio (ver Design System): rejilla de 24 px, trazo de 2 px, terminales redondeados.
 ICONOS = {
     "contenedor": '<rect x="3" y="6" width="18" height="12"/><path d="M7 6v12M12 6v12M17 6v12"/>',
     "mercancia": '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
@@ -56,6 +56,7 @@ ICONOS = {
     "validado": '<path d="M4 12l5 5L20 6"/>',
     "alerta": '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',
     "descargar": '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    "flecha": '<path d="M5 12h14M13 6l6 6-6 6"/>',
 }
 
 
@@ -63,15 +64,15 @@ def icono(nombre, tamano=22):
   """SVG en línea del set FronteraIQ; toma el color del texto (currentColor)."""
   return (
       f'<svg class="fiq-icono" width="{tamano}" height="{tamano}" viewBox="0 0 24 24"'
-      ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"'
-      f' stroke-linejoin="miter" aria-hidden="true">{ICONOS[nombre]}</svg>'
+      ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+      f' stroke-linejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>'
   )
 
 
 def titulo(nombre, texto, nivel=3, destino=None):
   """Título con icono propio (reemplaza a los emoji)."""
   (destino or st).markdown(
-      f'<h{nivel} class="fiq-titulo">{icono(nombre, 30 if nivel < 4 else 26)}{texto}</h{nivel}>',
+      f'<h{nivel} class="fiq-titulo">{icono(nombre, 22 if nivel < 4 else 20)}{texto}</h{nivel}>',
       unsafe_allow_html=True,
   )
 
@@ -81,144 +82,168 @@ TELEFONO_WHATSAPP = "573156491042"  # <-- REEMPLAZA CON TU NÚMERO (Prefijo 57)
 # ==================== INYECCIÓN CSS SEGURA ====================
 css_code = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700;800&display=swap');
 
-/* Design System FronteraIQ: tokens (solo claro, igual que la landing) */
+/* Design System FronteraIQ v2: lenguaje de producto financiero claro (referencia: Wise).
+   Paneles menta, píldoras, un solo protagonista oscuro: el panel de cotización. */
 :root {
-    --fiq-surface: #E8EDEB; --fiq-raised: #FBFCFB; --fiq-ink: #0B2527;
-    --fiq-muted: #3C5C5F; --fiq-signal: #F5B700; --fiq-on-signal: #0B2527;
-    --fiq-on-ink: #E8EDEB; --fiq-line: #9DB1B1; --fiq-focus: #1F4FD8;
+    --fiq-page: #FFFFFF; --fiq-surface: #FFFFFF; --fiq-panel: #EEF4F2; --fiq-raised: #FFFFFF;
+    --fiq-ink: #0B2527; --fiq-muted: #4A6769; --fiq-signal: #F5B700; --fiq-signal-hover: #FFC61A;
+    --fiq-on-signal: #0B2527; --fiq-on-ink: #F2F7F5; --fiq-on-ink-muted: #B9CCCB;
+    --fiq-line: #D3DFDC; --fiq-focus: #1F4FD8; --fiq-teal: #2E6F73; --fiq-teal-light: #6FB0B3;
     --fiq-success: #166A3E; --fiq-critical: #B3261E;
-    --fiq-shadow: 8px 8px 0 #0B2527;
+    --fiq-r-card: 28px; --fiq-r-field: 14px; --fiq-r-pill: 999px;
+    --fiq-ease: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 html, body, [class*="css"],
-.stApp :not([data-testid="stIconMaterial"]):not([class*="material" i]):not(:is(h1, h2, h3, h4, .metric-value, .hero-title) *):not(h1):not(h2):not(h3):not(h4):not(.metric-value):not(.hero-title) {
+.stApp :not([data-testid="stIconMaterial"]):not([class*="material" i]):not(:is(h1, h2, h3, h4, .metric-value, .hero-title, .fiq-display) *):not(h1):not(h2):not(h3):not(h4):not(.metric-value):not(.hero-title):not(.fiq-display) {
     font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
 }
-h1, h2, h3, h4 {
-    font-family: 'Big Shoulders Display', system-ui, sans-serif !important;
+.stApp { background: var(--fiq-page); color: var(--fiq-ink); }
+.block-container { max-width: 1240px !important; padding-top: 4.5rem !important; }
+[data-testid="stHeader"] { background: transparent; }
+
+h1, h2, h3, h4, .fiq-display {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif !important;
     font-weight: 800 !important;
-    letter-spacing: 0.005em;
-}
-h2 { font-size: 1.8rem !important; }
-h3 { font-size: 2.2rem !important; }
-h4 { font-size: 1.7rem !important; }
-
-.fiq-icono { display: inline-block; vertical-align: -0.2em; margin-right: 12px; }
-.hero-title { display: flex; align-items: center; }
-.hero-title .fiq-icono { margin-right: 14px; vertical-align: middle; }
-
-.hero-header {
-    background: var(--fiq-ink);
-    padding: 32px 40px;
-    border-radius: 8px;
-    color: var(--fiq-on-ink);
-    margin-bottom: 28px;
-    box-shadow: var(--fiq-shadow);
-    border: 2px solid var(--fiq-ink);
-}
-
-.hero-title {
-    font-family: 'Big Shoulders Display', system-ui, sans-serif;
-    font-size: 46px;
-    font-weight: 800;
-    letter-spacing: 0.005em;
-    line-height: 1;
-    margin-bottom: 8px;
-    color: var(--fiq-on-ink);
-}
-
-.hero-subtitle {
-    font-size: 15px;
-    color: var(--fiq-on-ink);
-    opacity: 0.8;
-    font-weight: 600;
-}
-
-.metric-card {
-    background-color: var(--fiq-raised);
-    border: 2px solid var(--fiq-ink);
-    border-radius: 8px;
-    padding: 22px;
+    letter-spacing: -0.02em;
+    line-height: 1.08 !important;
     color: var(--fiq-ink);
 }
+h2 { font-size: 1.4rem !important; }
+h3 { font-size: 1.7rem !important; }
+h4 { font-size: 1.25rem !important; }
+hr { border-color: var(--fiq-line) !important; }
 
-.metric-card.is-main {
-    box-shadow: var(--fiq-shadow);
-    background-color: var(--fiq-signal);
-    color: var(--fiq-on-signal);
-}
+/* Iconos en fichas redondas */
+.fiq-icono { display: inline-block; vertical-align: -0.2em; flex: none; }
+.fiq-titulo, .fiq-titulo > span { display: flex !important; align-items: center; gap: 12px; }
+.fiq-titulo { margin: 0 0 4px !important; }
+.fiq-titulo .fiq-icono { box-sizing: content-box; padding: 9px; background: var(--fiq-signal); color: var(--fiq-ink); border-radius: var(--fiq-r-pill); }
 
-.metric-label {
-    font-size: 12px;
-    font-weight: 800;
-    color: inherit;
-    opacity: 0.8;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 8px;
+/* Barra superior y encabezado de la calculadora */
+.fiq-topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 36px; }
+.fiq-logo { display: flex; align-items: center; gap: 12px; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.03em; line-height: 1; }
+.fiq-logo .fiq-icono { box-sizing: content-box; padding: 9px; background: var(--fiq-ink); color: var(--fiq-signal); border-radius: var(--fiq-r-pill); }
+.fiq-logo .fiq-pro { background: var(--fiq-signal); padding: 3px 10px; border-radius: var(--fiq-r-pill); font-family: 'Atkinson Hyperlegible Next', sans-serif; font-size: 14px; letter-spacing: 0; }
+.rate-chip { display: inline-flex; align-items: center; gap: 10px; background: var(--fiq-panel); padding: 9px 18px; border-radius: var(--fiq-r-pill); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+.rate-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--fiq-success); }
+.rate-chip.is-warn { background: #FBE9E7; color: var(--fiq-critical); }
+.rate-chip.is-warn i { background: var(--fiq-critical); }
+.page-title { font-size: clamp(38px, 4.6vw, 62px); max-width: 860px; margin: 0 0 14px; }
+.page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
+
+/* Pasos del formulario: paneles menta con campos blancos */
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica {
+    background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
+[data-testid="stColumn"]:has(.st-key-quote) > [data-testid="stVerticalBlock"] { height: 100%; }
+.st-key-quote { position: sticky; top: 1.25rem; }
+
+/* Campos */
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="base-input"] {
+    border-radius: var(--fiq-r-field) !important;
+}
+[data-baseweb="input"], [data-baseweb="select"] > div {
+    background: #FFFFFF !important; border: 1.5px solid transparent !important; min-height: 52px;
+    transition: border-color 140ms var(--fiq-ease), box-shadow 140ms var(--fiq-ease);
+}
+[data-baseweb="input"]:focus-within, [data-baseweb="select"] > div:focus-within {
+    border-color: var(--fiq-ink) !important; box-shadow: 0 0 0 4px rgba(245, 183, 0, 0.45);
+}
+[data-testid="stNumberInputContainer"] { border-radius: var(--fiq-r-field) !important; }
+[data-testid="stNumberInput"] input, [data-testid="stTextInput"] input { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+[data-testid="stWidgetLabel"] p, label p { font-weight: 700; font-size: 14px; color: var(--fiq-ink); }
+.st-key-in_fob input { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.st-key-in_fob [data-baseweb="input"] { min-height: 68px; }
+[data-testid="stCaptionContainer"] { color: var(--fiq-muted); }
+[data-testid="stAlert"] { border-radius: 20px; }
+[data-testid="stDataFrame"] { border-radius: 20px; overflow: hidden; }
+
+/* Barra lateral: plan y monedas */
+[data-testid="stSidebar"] { background: var(--fiq-panel); }
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] { background: #FFFFFF; padding: 5px; border-radius: var(--fiq-r-pill); gap: 4px; flex-wrap: nowrap; width: 100%; }
+[data-testid="stSidebar"] [data-testid="stRadioOption"] p { white-space: nowrap; font-size: 14px; }
+[data-testid="stSidebar"] [data-testid="stRadioGroup"] > div { flex: 1; }
+[data-testid="stSidebar"] [data-testid="stRadioOption"] { width: 100%; justify-content: center; margin: 0; padding: 9px 6px; border-radius: var(--fiq-r-pill); cursor: pointer; transition: background-color 140ms var(--fiq-ease); }
+[data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div:first-child { display: none; }
+[data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] { background: var(--fiq-ink); }
+[data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] p { color: #FFFFFF; }
+
+/* Panel de cotización: el protagonista oscuro */
+.st-key-quote > [data-testid="stVerticalBlock"], .st-key-quote { gap: 0 !important; }
+.quote { background: var(--fiq-ink); color: var(--fiq-on-ink); border-radius: var(--fiq-r-card); padding: 30px 30px 26px; }
+.quote-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.quote-top .quote-label { font-size: 16px; font-weight: 700; color: var(--fiq-on-ink-muted); }
+.quote .rate-chip { background: rgba(255, 255, 255, 0.1); color: var(--fiq-on-ink); font-size: 13px; padding: 6px 14px; }
+.quote .rate-chip i { background: #6BD39B; }
+.quote .rate-chip.is-warn { background: #FBE9E7; color: var(--fiq-critical); }
+.quote .rate-chip.is-warn i { background: var(--fiq-critical); }
+.quote .metric-value.is-hero { font-size: clamp(36px, 3.7vw, 54px); color: var(--fiq-signal); margin: 10px 0 4px; letter-spacing: -0.03em; }
+.quote .metric-subtext { color: var(--fiq-on-ink-muted); opacity: 1; }
+.quote-barra { display: flex; height: 12px; border-radius: var(--fiq-r-pill); overflow: hidden; background: rgba(255, 255, 255, 0.12); margin: 22px 0 14px; gap: 2px; }
+.quote-barra i { display: block; }
+.quote-leyenda { display: grid; gap: 8px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.quote-leyenda div { display: flex; align-items: center; gap: 10px; }
+.quote-leyenda b { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.quote-leyenda span:last-child { margin-left: auto; font-weight: 700; }
+.quote-filas { margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+.quote-fila { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.16); }
+.quote-fila .quote-nombre { font-weight: 700; font-size: 15px; }
+.quote-fila .metric-subtext { font-size: 13px; }
+.quote-fila .metric-value { font-size: 24px; text-align: right; }
+.quote-nota { font-size: 12.5px; color: var(--fiq-on-ink-muted); margin: 16px 0 18px; }
 
 .metric-value {
-    font-family: 'Big Shoulders Display', system-ui, sans-serif;
-    font-size: 34px;
-    white-space: nowrap;
-    font-weight: 800;
-    letter-spacing: 0.005em;
-    line-height: 1.05;
-    font-variant-numeric: tabular-nums;
-    color: inherit;
-    margin-bottom: 4px;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap;
+    font-variant-numeric: tabular-nums; color: inherit;
+    animation: fiq-asentar 260ms var(--fiq-ease);
 }
+.metric-subtext { font-size: 14px; font-weight: 600; color: var(--fiq-muted); }
+@keyframes fiq-asentar { from { opacity: 0.35; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-.metric-subtext {
-    font-size: 13px;
-    font-weight: 600;
-    color: inherit;
-    opacity: 0.85;
+/* Botones: píldoras */
+[data-testid^="stBaseButton"], .stButton > button, .stDownloadButton > button {
+    border-radius: var(--fiq-r-pill) !important; min-height: 52px !important; font-weight: 800 !important; padding: 0 28px !important;
+    transition: transform 140ms var(--fiq-ease), background-color 140ms var(--fiq-ease);
 }
+[data-testid="stBaseButton-primary"] { background: var(--fiq-signal) !important; border: 0 !important; color: var(--fiq-on-signal) !important; }
+[data-testid="stBaseButton-primary"] p { color: var(--fiq-on-signal) !important; }
+[data-testid="stBaseButton-primary"]:hover { background: var(--fiq-signal-hover) !important; }
+[data-testid="stBaseButton-secondary"] { background: transparent !important; border: 2px solid var(--fiq-ink) !important; color: var(--fiq-ink) !important; }
+[data-testid="stBaseButton-secondary"]:hover { background: var(--fiq-panel) !important; }
+[data-testid^="stBaseButton"]:disabled { background: var(--fiq-panel) !important; border: 2px solid var(--fiq-line) !important; color: var(--fiq-muted) !important; }
+[data-testid^="stBaseButton"]:active:not(:disabled) { transform: scale(0.97); }
 
 .whatsapp-btn {
-    background: var(--fiq-signal);
-    color: var(--fiq-on-signal) !important;
-    font-weight: 800;
-    padding: 12px 24px;
-    min-height: 48px;
-    box-sizing: border-box;
-    border: 2px solid var(--fiq-ink);
-    border-radius: 6px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    text-align: center;
+    background: var(--fiq-signal); color: var(--fiq-on-signal) !important; font-weight: 800;
+    padding: 12px 28px; min-height: 52px; box-sizing: border-box; border-radius: var(--fiq-r-pill);
+    text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 16px; text-align: center;
+    transition: transform 140ms var(--fiq-ease), background-color 140ms var(--fiq-ease);
 }
-.whatsapp-btn:focus-visible { outline: 3px solid var(--fiq-focus); outline-offset: 3px; }
-
-div[data-baseweb="input"] {
-    border-radius: 6px !important;
-}
-
-.stButton>button, .stDownloadButton>button {
-    border-radius: 6px !important;
-    border: 2px solid var(--fiq-ink) !important;
-    font-weight: 800 !important;
-    min-height: 48px !important;
-}
+.whatsapp-btn, .whatsapp-btn:hover { text-decoration: none !important; }
+.whatsapp-btn:hover { background: var(--fiq-signal-hover); }
+.whatsapp-btn .fiq-icono { margin: 0; transition: transform 160ms var(--fiq-ease); }
+.whatsapp-btn:hover .fiq-icono { transform: translateX(3px); }
 button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !important; outline-offset: 3px; }
+.whatsapp-btn:active { transform: scale(0.97); }
 
-/* Movimiento: solo feedback al presionar, corto y con ease-out */
-.stButton>button, .stDownloadButton>button, .whatsapp-btn {
-    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-.stButton>button:active, .stDownloadButton>button:active, .whatsapp-btn:active {
-    transform: scale(0.97);
+/* Detalle de la liquidación */
+.st-key-detalle { background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px; }
+
+@media (max-width: 900px) {
+    .st-key-quote { position: static; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica { padding: 20px 18px 14px; }
+    .quote { padding: 24px 20px 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .stButton>button, .stDownloadButton>button, .whatsapp-btn { transition: none; }
-    .stButton>button:active, .stDownloadButton>button:active, .whatsapp-btn:active { transform: none; }
+    [data-testid^="stBaseButton"], .whatsapp-btn, .whatsapp-btn .fiq-icono, [data-baseweb="input"], [data-baseweb="select"] > div { transition: none; }
+    [data-testid^="stBaseButton"]:active:not(:disabled), .whatsapp-btn:active { transform: none; }
+    .metric-value { animation: none; }
 }
 </style>
 """
@@ -808,7 +833,7 @@ def calculadora():
   st.sidebar.page_link(_PAGINAS["inicio"], label="Volver al inicio", icon=":material/arrow_back:")
   # ==================== BARRA LATERAL (SIDEBAR) ====================
   titulo("acceso", "Acceso de Usuario", 2, st.sidebar)
-  tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"])
+  tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"], horizontal=True)
 
   es_pro = False
   if tipo_plan == "Pro / Premium":
@@ -854,135 +879,158 @@ def calculadora():
 
 
   # ==================== ENCABEZADO PRINCIPAL ====================
+  if abs(trm - trm_oficial) > 1e-9:
+    trm_etiqueta, trm_alerta = "TRM manual", False
+  elif trm_es_oficial:
+    trm_etiqueta, trm_alerta = f"TRM oficial · {trm_fecha}", False
+  else:
+    trm_etiqueta, trm_alerta = "TRM de respaldo", True
+  chip_trm = (
+      f'<span class="rate-chip{" is-warn" if trm_alerta else ""}"><i></i>'
+      f"1 USD = $ {num(trm)} COP · {trm_etiqueta}</span>"
+  )
   st.markdown(
       f"""
-      <div class="hero-header">
-          <div class="hero-title">{icono('contenedor', 34)} FronteraIQ Pro</div>
-          <div class="hero-subtitle">Plataforma de Inteligencia Aduanera y Cálculo de Costos Landed en Cúcuta</div>
+      <div class="fiq-topbar">
+          <div class="fiq-logo">{icono('contenedor', 22)}<span>FronteraIQ</span><span class="fiq-pro">Pro</span></div>
       </div>
+      <h1 class="page-title fiq-display">Cuánto cuesta realmente tu importación puesta en Cúcuta</h1>
+      <p class="page-sub">Plataforma de inteligencia aduanera: costo landed, impuestos DIAN y precio de venta. Cambia cualquier valor y el resultado se actualiza al instante.</p>
   """,
       unsafe_allow_html=True,
   )
 
 
   # ==================== FORMULARIO ====================
-  col_left, col_right = st.columns([1, 1], gap="large")
+  col_form, col_quote = st.columns([1.3, 1], gap="large")
+  with col_quote:
+    panel = st.container(key="quote")
 
-  with col_left:
-    titulo("mercancia", "Mercancía y Partida NANDINA")
+  with col_form:
+    with st.container(key="paso-mercancia"):
+      titulo("mercancia", "Mercancía y Partida NANDINA")
 
-    producto_sel = st.selectbox(
-        "Seleccionar o buscar tipo de producto",
-        list(CATALOGO_NANDINA.keys()),
-    )
-    partida_info = CATALOGO_NANDINA[producto_sel]
-    if partida_info["codigo"]:
-      registrar_evento("partida_elegida", partida_info["codigo"])
+      producto_sel = st.selectbox(
+          "Seleccionar o buscar tipo de producto",
+          list(CATALOGO_NANDINA.keys()),
+      )
+      partida_info = CATALOGO_NANDINA[producto_sel]
+      if partida_info["codigo"]:
+        registrar_evento("partida_elegida", partida_info["codigo"])
 
-    if producto_sel == "Personalizado / Otra partida":
-      producto = st.text_input("Nombre / Referencia", value="Mercancía General")
-      en_vivo = bloque_dian_en_vivo()
-      if en_vivo:
-        consulta_dian, def_arancel, def_iva, origen_dian = en_vivo
-        partida_arancelaria = dian_arancel.formatear_codigo(consulta_dian.codigo)
+      if producto_sel == "Personalizado / Otra partida":
+        producto = st.text_input("Nombre / Referencia", value="Mercancía General")
+        en_vivo = bloque_dian_en_vivo()
+        if en_vivo:
+          consulta_dian, def_arancel, def_iva, origen_dian = en_vivo
+          partida_arancelaria = dian_arancel.formatear_codigo(consulta_dian.codigo)
+        else:
+          consulta_dian, origen_dian = None, None
+          partida_arancelaria = "0000.00.00.00"
+          def_arancel = 10.0
+          def_iva = 19.0
       else:
         consulta_dian, origen_dian = None, None
-        partida_arancelaria = "0000.00.00.00"
-        def_arancel = 10.0
-        def_iva = 19.0
-    else:
-      consulta_dian, origen_dian = None, None
-      producto = producto_sel
-      partida_arancelaria = st.text_input(
-          "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
+        producto = producto_sel
+        partida_arancelaria = st.text_input(
+            "Subpartida NANDINA (Autocompletada)", value=partida_info["codigo"]
+        )
+        validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
+        def_arancel = validacion["arancel"] if validacion else partida_info["arancel"]
+        def_iva = validacion["iva"] if validacion else partida_info["iva"]
+        if validacion:
+          st.caption(
+              f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
+              f" Vigencia: {validacion['vigencia']}"
+          )
+          st.caption(
+              "Tarifa general de importación. La subpartida correcta de tu producto la"
+              " defines tú o tu agente de aduanas; esta herramienta no clasifica mercancías"
+              " ni considera rebajas por acuerdos comerciales."
+          )
+          if validacion["condiciones"]:
+            st.info(f"**Condición de la tarifa:** {validacion['condiciones']}")
+        else:
+          st.warning(
+              "Arancel e IVA de **referencia**, pendientes de validación por un"
+              " agente de aduanas. Confírmalos con la normativa vigente antes de"
+              " operar; puedes ajustarlos en los campos de la derecha."
+          )
+
+      unidades = st.number_input(
+          "Cantidad de Unidades", min_value=1, max_value=1_000_000_000, value=1000, step=1
       )
-      validacion = PARTIDAS_VALIDADAS.get(partida_info["codigo"])
-      def_arancel = validacion["arancel"] if validacion else partida_info["arancel"]
-      def_iva = validacion["iva"] if validacion else partida_info["iva"]
-      if validacion:
-        st.caption(
-            f"Arancel e IVA validados · Fuente: {validacion['fuente']} ·"
-            f" Vigencia: {validacion['vigencia']}"
+    with st.container(key="paso-valores"):
+      titulo("valores", "Valores de la Carga (USD)", 4)
+      fob_usd = st.number_input(
+          "Valor FOB Total (USD)", min_value=0.0, max_value=1_000_000_000.0, value=10000.0, step=100.0,
+          key="in_fob",
+      )
+      col_flete, col_seguro = st.columns(2)
+      with col_flete:
+        flete_usd = st.number_input(
+            "Flete Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=1200.0, step=50.0
         )
-        st.caption(
-            "Tarifa general de importación. La subpartida correcta de tu producto la"
-            " defines tú o tu agente de aduanas; esta herramienta no clasifica mercancías"
-            " ni considera rebajas por acuerdos comerciales."
+      with col_seguro:
+        seguro_usd = st.number_input(
+            "Seguro Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=150.0, step=10.0
         )
-        if validacion["condiciones"]:
-          st.info(f"**Condición de la tarifa:** {validacion['condiciones']}")
-      else:
-        st.warning(
-            "Arancel e IVA de **referencia**, pendientes de validación por un"
-            " agente de aduanas. Confírmalos con la normativa vigente antes de"
-            " operar; puedes ajustarlos en los campos de la derecha."
+    with st.container(key="paso-tributos"):
+      titulo("tributos", "Arancel e IVA")
+
+      col_imp1, col_imp2 = st.columns(2)
+      with col_imp1:
+        pct_arancel = st.number_input(
+            "Arancel (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=def_arancel,
+            step=0.5,
+        )
+      with col_imp2:
+        pct_iva = st.number_input(
+            "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
+        )
+    with st.container(key="paso-logistica"):
+      titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
+      st.caption(
+          "Ingresa estos gastos con su IVA incluido. Si tu negocio no puede descontar ese IVA,"
+          " es parte de tu costo real."
+      )
+      col_g1, col_g2 = st.columns(2)
+      with col_g1:
+        agenciamiento_cop = st.number_input(
+            "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0
+        )
+      with col_g2:
+        bodegaje_cop = st.number_input(
+            "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0
+        )
+      col_g3, col_g4 = st.columns(2)
+      with col_g3:
+        transporte_local_cop = st.number_input(
+            "Transporte Terrestre Local (COP)",
+            min_value=0.0,
+            max_value=1_000_000_000_000.0,
+            value=800000.0,
+            step=50000.0,
+        )
+      with col_g4:
+        otros_gastos_cop = st.number_input(
+            "Otros Gastos / Inspecciones (COP)",
+            min_value=0.0,
+            max_value=1_000_000_000_000.0,
+            value=200000.0,
+            step=25000.0,
         )
 
-    unidades = st.number_input(
-        "Cantidad de Unidades", min_value=1, max_value=1_000_000_000, value=1000, step=1
-    )
-
-    titulo("valores", "Valores de la Carga (USD)", 4)
-    fob_usd = st.number_input(
-        "Valor FOB Total (USD)", min_value=0.0, max_value=1_000_000_000.0, value=10000.0, step=100.0
-    )
-    flete_usd = st.number_input(
-        "Flete Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=1200.0, step=50.0
-    )
-    seguro_usd = st.number_input(
-        "Seguro Internacional (USD)", min_value=0.0, max_value=1_000_000_000.0, value=150.0, step=10.0
-    )
-
-  with col_right:
-    titulo("tributos", "Impuestos y Gastos Locales")
-
-    col_imp1, col_imp2 = st.columns(2)
-    with col_imp1:
-      pct_arancel = st.number_input(
-          "Arancel (%)",
+      pct_margen = st.number_input(
+          "Margen Deseado (%)",
           min_value=0.0,
-          max_value=100.0,
-          value=def_arancel,
-          step=0.5,
+          max_value=99.0,
+          value=30.0,
+          step=1.0,
       )
-    with col_imp2:
-      pct_iva = st.number_input(
-          "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
-      )
-
-    titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
-    st.caption(
-        "Ingresa estos gastos con su IVA incluido. Si tu negocio no puede descontar ese IVA,"
-        " es parte de tu costo real."
-    )
-    agenciamiento_cop = st.number_input(
-        "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0
-    )
-    bodegaje_cop = st.number_input(
-        "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0
-    )
-    transporte_local_cop = st.number_input(
-        "Transporte Terrestre Local (COP)",
-        min_value=0.0,
-        max_value=1_000_000_000_000.0,
-        value=800000.0,
-        step=50000.0,
-    )
-    otros_gastos_cop = st.number_input(
-        "Otros Gastos / Inspecciones (COP)",
-        min_value=0.0,
-        max_value=1_000_000_000_000.0,
-        value=200000.0,
-        step=25000.0,
-    )
-
-    pct_margen = st.number_input(
-        "Margen Deseado (%)",
-        min_value=0.0,
-        max_value=99.0,
-        value=30.0,
-        step=1.0,
-    )
 
 
   # ==================== CÁLCULOS ====================
@@ -1051,120 +1099,7 @@ def calculadora():
   datos_cotizacion["codigo"] = codigo_cotizacion(datos_cotizacion, emision)
 
 
-  # ==================== PRESENTACIÓN DE RESULTADOS ====================
-  st.divider()
-  titulo("resultados", "Resumen de Resultados")
-
-  m1, m2, m3, m4 = st.columns(4)
-
-  m1.markdown(
-      f"""
-      <div class="metric-card is-main">
-          <div class="metric-label">Costo Total Landed</div>
-          <div class="metric-value">$ {num(costo_total_landed_cop)}</div>
-          <div class="metric-subtext">COP Puesto en Cúcuta</div>
-      </div>
-  """,
-      unsafe_allow_html=True,
-  )
-
-  m2.markdown(
-      f"""
-      <div class="metric-card">
-          <div class="metric-label">Costo Unitario</div>
-          <div class="metric-value">$ {num(costo_unitario_cop, 2)}</div>
-          <div class="metric-subtext">Por unidad importada</div>
-      </div>
-  """,
-      unsafe_allow_html=True,
-  )
-
-  m3.markdown(
-      f"""
-      <div class="metric-card">
-          <div class="metric-label">Impuestos DIAN</div>
-          <div class="metric-value">$ {num(total_tributos_cop)}</div>
-          <div class="metric-subtext">Arancel + IVA</div>
-      </div>
-  """,
-      unsafe_allow_html=True,
-  )
-
-  m4.markdown(
-      f"""
-      <div class="metric-card">
-          <div class="metric-label">Precio Venta Sugerido</div>
-          <div class="metric-value">$ {num(precio_sugerido_unitario_cop, 2)}</div>
-          <div class="metric-subtext">Margen {pct_margen}%</div>
-      </div>
-  """,
-      unsafe_allow_html=True,
-  )
-
-  st.markdown("<br>", unsafe_allow_html=True)
-
-  if es_pro:
-    texto_ves = (
-        f"`{num(costo_total_ves, 2)} VES`" if costo_total_ves is not None
-        else "ingresa la tasa Bs/USD en la barra lateral"
-    )
-    st.info(
-        f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
-        f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):** {texto_ves}"
-    )
-
-  col_chart, col_table = st.columns([1, 1], gap="large")
-
-  with col_chart:
-    st.markdown("#### Distribución de Costos")
-    df_chart = pd.DataFrame({
-        "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
-        "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
-    })
-    fig = px.pie(
-        df_chart,
-        values="Monto_COP",
-        names="Concepto",
-        hole=0.4,
-        color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
-    )
-    st.plotly_chart(fig, width="stretch")
-
-  with col_table:
-    st.markdown("#### Desglose de Liquidación")
-    liquidacion_data = {
-        "Concepto": [
-            "Valor CIF (USD)",
-            "Valor CIF (COP)",
-            "Arancel DIAN (COP)",
-            "IVA DIAN (COP)",
-            "Total Impuestos",
-            "Gastos Cúcuta",
-            "COSTO TOTAL LANDED",
-        ],
-        "Monto": [
-            f"$ {num(cif_usd, 2)} USD",
-            f"$ {num(cif_cop)} COP",
-            f"$ {num(arancel_cop)} COP",
-            f"$ {num(iva_cop)} COP",
-            f"$ {num(total_tributos_cop)} COP",
-            f"$ {num(total_gastos_locales_cop)} COP",
-            f"$ {num(costo_total_landed_cop)} COP",
-        ],
-    }
-    st.dataframe(
-        pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
-    )
-
-
-  # ==================== ACCIONES Y REPORTES ====================
-  st.divider()
-  titulo("acciones", "Acciones Directas")
-  st.caption(
-      f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
-      f" {datos_cotizacion['origen_trm']}"
-  )
-
+  # ==================== ENLACE A WHATSAPP ====================
   mensaje_whatsapp = f"""Hola, requiero asesoría aduanera para la siguiente operación en FronteraIQ:
 
   📌 *Producto:* {producto}
@@ -1179,14 +1114,116 @@ def calculadora():
       f"https://api.whatsapp.com/send?phone={TELEFONO_WHATSAPP}&text={mensaje_encoded}"
   )
 
-  c1, c2, c3 = st.columns([1, 1, 1])
 
-  with c1:
+  # ==================== PANEL DE COTIZACIÓN (SE ACTUALIZA EN VIVO) ====================
+  base_barra = costo_total_landed_cop if costo_total_landed_cop > 0 else 1
+  pct_cif = cif_cop / base_barra * 100
+  pct_trib = total_tributos_cop / base_barra * 100
+  pct_gastos = total_gastos_locales_cop / base_barra * 100
+
+  with panel:
     st.markdown(
-        f'<a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">'
-        f"{icono('acciones', 20)}&nbsp; Contactar por WhatsApp</a>",
+        f"""
+        <div class="quote">
+            <div class="quote-top"><span class="quote-label">Costo total landed</span>{chip_trm}</div>
+            <div class="metric-value is-hero">$ {num(costo_total_landed_cop)}</div>
+            <div class="metric-subtext">COP puesto en Cúcuta, todo incluido</div>
+            <div class="quote-barra" role="img" aria-label="Proporción de CIF, tributos y gastos locales en el costo landed">
+                <i style="width:{pct_cif:.2f}%;background:var(--fiq-teal-light)"></i><i style="width:{pct_trib:.2f}%;background:var(--fiq-signal)"></i><i style="width:{pct_gastos:.2f}%;background:#B9CCCB"></i>
+            </div>
+            <div class="quote-leyenda">
+                <div><b style="background:var(--fiq-teal-light)"></b><span>Valor CIF en pesos</span><span>$ {num(cif_cop)}</span></div>
+                <div><b style="background:var(--fiq-signal)"></b><span>Arancel + IVA</span><span>$ {num(total_tributos_cop)}</span></div>
+                <div><b style="background:#B9CCCB"></b><span>Gastos en Cúcuta</span><span>$ {num(total_gastos_locales_cop)}</span></div>
+            </div>
+            <div class="quote-filas">
+                <div class="quote-fila"><div><div class="quote-nombre">Costo unitario</div><div class="metric-subtext">Por unidad importada</div></div><div class="metric-value">$ {num(costo_unitario_cop, 2)}</div></div>
+                <div class="quote-fila"><div><div class="quote-nombre">Impuestos DIAN</div><div class="metric-subtext">Arancel + IVA</div></div><div class="metric-value">$ {num(total_tributos_cop)}</div></div>
+                <div class="quote-fila"><div><div class="quote-nombre">Precio de venta sugerido</div><div class="metric-subtext">Con margen de {pct_margen}%</div></div><div class="metric-value">$ {num(precio_sugerido_unitario_cop, 2)}</div></div>
+            </div>
+            <p class="quote-nota">Estimación de costos, no es una liquidación oficial de la DIAN.</p>
+            <a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">Pedir asesoría por WhatsApp {icono('flecha', 20)}</a>
+        </div>
+    """,
         unsafe_allow_html=True,
     )
+
+
+  # ==================== DETALLE DE LA LIQUIDACIÓN ====================
+  st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+  titulo("resultados", "Detalle de la liquidación")
+
+  if es_pro:
+    texto_ves = (
+        f"`{num(costo_total_ves, 2)} VES`" if costo_total_ves is not None
+        else "ingresa la tasa Bs/USD en la barra lateral"
+    )
+    st.info(
+        f"**Equivalencia Fronteriza (Pro):** Costo Total en **USDT:**"
+        f" `{num(costo_total_usdt, 2)} USDT` | **Bolívares (VES):** {texto_ves}"
+    )
+
+  with st.container(key="detalle"):
+    col_chart, col_table = st.columns([1, 1], gap="large")
+
+    with col_chart:
+      st.markdown("#### Distribución de Costos")
+      df_chart = pd.DataFrame({
+          "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
+          "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
+      })
+      fig = px.pie(
+          df_chart,
+          values="Monto_COP",
+          names="Concepto",
+          hole=0.55,
+          color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
+      )
+      fig.update_traces(marker=dict(line=dict(color="#EEF4F2", width=3)))
+      fig.update_layout(
+          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+          font=dict(family="Atkinson Hyperlegible Next, sans-serif", color="#0B2527", size=14),
+          margin=dict(t=10, b=10, l=10, r=10),
+          legend=dict(orientation="h", y=-0.05),
+      )
+      st.plotly_chart(fig, width="stretch")
+
+    with col_table:
+      st.markdown("#### Desglose de Liquidación")
+      liquidacion_data = {
+          "Concepto": [
+              "Valor CIF (USD)",
+              "Valor CIF (COP)",
+              "Arancel DIAN (COP)",
+              "IVA DIAN (COP)",
+              "Total Impuestos",
+              "Gastos Cúcuta",
+              "COSTO TOTAL LANDED",
+          ],
+          "Monto": [
+              f"$ {num(cif_usd, 2)} USD",
+              f"$ {num(cif_cop)} COP",
+              f"$ {num(arancel_cop)} COP",
+              f"$ {num(iva_cop)} COP",
+              f"$ {num(total_tributos_cop)} COP",
+              f"$ {num(total_gastos_locales_cop)} COP",
+              f"$ {num(costo_total_landed_cop)} COP",
+          ],
+      }
+      st.dataframe(
+          pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
+      )
+
+
+  # ==================== ACCIONES Y REPORTES ====================
+  st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+  titulo("acciones", "Exporta tu cotización")
+  st.caption(
+      f"Código de cotización: **{datos_cotizacion['codigo']}** · TRM:"
+      f" {datos_cotizacion['origen_trm']}"
+  )
+
+  c2, c3 = st.columns(2)
 
   with c2:
     if es_pro:
@@ -1202,6 +1239,7 @@ def calculadora():
             data=pdf_bytes,
             file_name=f"{datos_cotizacion['codigo']}_{nombre_seguro or 'producto'}.pdf",
             mime="application/pdf",
+            type="primary",
             width="stretch",
             on_click=registrar_evento,
             args=("descarga_pdf",),

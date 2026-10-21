@@ -23,69 +23,71 @@ CSS = """
 <style>
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
 [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
-.stApp { background: var(--fiq-surface); }
+.stApp { background: var(--fiq-page); }
 section.stMain { overflow-x: hidden; }
 .block-container { max-width: 1200px !important; padding: 0 24px 0 !important; }
 [data-testid="stVerticalBlock"] { gap: 0 !important; }
 .fiq-land { color: var(--fiq-ink); line-height: 1.55; }
 .fiq-land .l-h1, .fiq-land .l-h2, .fiq-land .l-h3, .fiq-land .l-num {
-    font-family: 'Big Shoulders Display', system-ui, sans-serif !important;
-    font-weight: 800 !important; letter-spacing: 0.005em; margin: 0; color: inherit;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif !important;
+    font-weight: 800 !important; letter-spacing: -0.03em; margin: 0; color: inherit;
 }
-.fiq-land .l-h1 { font-size: clamp(46px, 5.4vw, 79px) !important; line-height: 1.02; }
-.fiq-land .l-h2 { font-size: clamp(36px, 4vw, 55px) !important; line-height: 1.08; }
-.fiq-land .l-h3 { font-size: 26px !important; }
+.fiq-land .l-h1 { font-size: clamp(38px, 3.7vw, 56px) !important; line-height: 1; }
+.fiq-land .l-h2 { font-size: clamp(34px, 3.8vw, 52px) !important; line-height: 1.04; }
+.fiq-land .l-h3 { font-size: 24px !important; line-height: 1.1; letter-spacing: -0.02em; }
 .fiq-land p { margin: 0; }
-.fiq-band { margin-inline: calc(50% - 50vw); padding-inline: calc(50vw - 50%); }
-.fiq-band-dark { background: #0B2527; color: #E8EDEB; }
-.fiq-band-signal { background: #F5B700; color: #0B2527; }
-.fiq-cadena { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); border: 1px solid #3C5C5F; margin-top: 44px; }
-.fiq-cadena > div { padding: 24px; border-right: 1px solid #3C5C5F; border-bottom: 1px solid #3C5C5F; }
-.fiq-cadena .l-h3 { color: #F5B700; font-size: 29px !important; }
+.fiq-band { border-radius: 40px; }
+.fiq-band-dark { background: #0B2527; color: #F2F7F5; }
+.fiq-cadena { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 44px; }
+.fiq-cadena > div { padding: 24px; background: rgba(255, 255, 255, 0.07); border-radius: 24px; }
+.fiq-cadena .l-h3 { color: #F5B700; font-size: 28px !important; }
 .fiq-cadena p { margin-top: 10px; font-size: 15px; color: #B9CCCB; }
-.fiq-grid { display: grid; gap: 40px 56px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 48px; }
+.fiq-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); margin-top: 44px; }
+.fiq-grid > div { background: var(--fiq-panel); border-radius: 28px; padding: 32px; }
 .fiq-grid p { margin-top: 10px; color: #26474A; }
-.fiq-quien { background: var(--fiq-raised); border: 2px solid var(--fiq-ink); border-radius: 8px; padding: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; }
-.fiq-quien .l-h3 { font-size: 29px !important; }
+.fiq-quien { background: var(--fiq-panel); border-radius: 36px; padding: 44px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; }
+.fiq-quien .l-h3 { font-size: 28px !important; }
 .fiq-quien p { margin-top: 8px; color: #26474A; font-size: 15px; }
-.l-precio { font-size: 46px !important; margin-top: 8px !important; font-variant-numeric: tabular-nums; }
-.l-precio small { font-family: 'Atkinson Hyperlegible Next', sans-serif; font-size: 16px; font-weight: 600; }
+.l-precio { font-size: 38px !important; white-space: nowrap; margin-top: 8px !important; font-variant-numeric: tabular-nums; }
+.l-precio small { font-family: 'Atkinson Hyperlegible Next', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0; }
 .l-nota { font-size: 14px; color: #3C5C5F; }
-.l-fila { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; font-size: 15px; font-variant-numeric: tabular-nums; }
-.l-barra { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: #D3DEDC; margin-top: 16px; }
+.l-fila span:last-child { white-space: nowrap; }
+.l-fila { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.l-barra { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: #D3DEDC; margin-top: 16px; gap: 2px; }
 .l-barra i { display: block; transition: width 250ms cubic-bezier(0.23, 1, 0.32, 1); }
+.l-chip { display: inline-block; background: var(--fiq-panel); padding: 7px 16px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.l-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 @media (prefers-reduced-motion: reduce) { .l-barra i { transition: none; } }
 
-/* Tarjetas de la landing (contenedores con clave) */
-.st-key-demo, .st-key-plan-starter, .st-key-plan-pro, .st-key-plan-agencia {
-    background: var(--fiq-raised); border: 2px solid var(--fiq-ink) !important; border-radius: 8px; padding: 28px;
-}
-.st-key-demo, .st-key-plan-pro { box-shadow: 8px 8px 0 #0B2527; }
+/* Tarjetas (contenedores con clave) */
+.st-key-demo { background: #FFFFFF; border: 1px solid var(--fiq-line); border-radius: 32px; padding: 32px; box-shadow: 0 28px 56px -28px rgba(11, 37, 39, 0.35); }
+.st-key-plan-starter, .st-key-plan-pro, .st-key-plan-agencia { background: var(--fiq-panel); border-radius: 32px; padding: 32px; }
 .st-key-plan-pro { background: #F5B700; }
 .st-key-plan-starter, .st-key-plan-pro, .st-key-plan-agencia { height: 100%; }
 [data-testid="stColumn"] > div { height: 100%; }
 .st-key-plan-starter [data-testid="stVerticalBlock"], .st-key-plan-pro [data-testid="stVerticalBlock"], .st-key-plan-agencia [data-testid="stVerticalBlock"] { gap: 0.75rem !important; }
 
-/* Botones de la landing: mismo lenguaje que la calculadora */
+/* Botones: píldoras, igual que la calculadora */
 .fiq-land a.l-btn, [data-testid="stPageLink"] a, [data-testid="stLinkButton"] a {
-    min-height: 48px; border: 2px solid var(--fiq-ink) !important; border-radius: 6px !important;
-    font-weight: 700 !important; text-decoration: none !important; justify-content: center;
-    transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    min-height: 52px; border: 2px solid var(--fiq-ink) !important; border-radius: 999px !important;
+    font-weight: 800 !important; text-decoration: none !important; justify-content: center;
+    transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms;
 }
 [data-testid="stPageLink"] a:active, [data-testid="stLinkButton"] a:active { transform: scale(0.97); }
-.st-key-cta-hero [data-testid="stPageLink"] a, .st-key-cta-final [data-testid="stPageLink"] a { background: #F5B700; color: #0B2527 !important; padding: 12px 26px; }
-.st-key-cta-final [data-testid="stPageLink"] a { background: #0B2527; color: #E8EDEB !important; }
+.st-key-cta-hero [data-testid="stPageLink"] a { background: #F5B700; border-color: #F5B700 !important; color: #0B2527 !important; padding: 12px 32px; font-size: 17px; }
+.st-key-cta-hero [data-testid="stPageLink"] a:hover { background: #FFC61A; }
+.st-key-cta-final [data-testid="stPageLink"] a { background: #0B2527; color: #F2F7F5 !important; padding: 12px 32px; font-size: 17px; }
 .st-key-cta-starter [data-testid="stPageLink"] a, .st-key-cta-agencia [data-testid="stLinkButton"] a { background: transparent; color: #0B2527 !important; }
-.st-key-cta-pro-m [data-testid="stLinkButton"] a { background: #0B2527; color: #E8EDEB !important; }
+.st-key-cta-pro-m [data-testid="stLinkButton"] a { background: #0B2527; color: #F2F7F5 !important; }
 .st-key-cta-pro-a [data-testid="stLinkButton"] a { background: transparent; color: #0B2527 !important; }
-.st-key-nav [data-testid="stPageLink"] a { background: #0B2527; padding: 8px 20px; min-height: 44px; }
-.st-key-nav [data-testid="stPageLink"] a *, .st-key-cta-final [data-testid="stPageLink"] a *, .st-key-cta-pro-m [data-testid="stLinkButton"] a * { color: #E8EDEB !important; }
+.st-key-nav [data-testid="stPageLink"] a { background: #0B2527; padding: 8px 22px; min-height: 46px; }
+.st-key-nav [data-testid="stPageLink"] a *, .st-key-cta-final [data-testid="stPageLink"] a *, .st-key-cta-pro-m [data-testid="stLinkButton"] a * { color: #F2F7F5 !important; }
 .st-key-cta-hero [data-testid="stPageLink"] a *, .st-key-cta-starter [data-testid="stPageLink"] a *, .st-key-cta-agencia [data-testid="stLinkButton"] a *, .st-key-cta-pro-a [data-testid="stLinkButton"] a * { color: #0B2527 !important; }
 .st-key-cta-starter, .st-key-cta-agencia, .st-key-cta-pro-m { margin-top: 20px; }
 .st-key-cta-pro-a { margin-top: 8px; }
 @media (min-width: 900px) { .st-key-plan-starter, .st-key-plan-pro, .st-key-plan-agencia { min-height: 790px; } }
-.st-key-band-final { position: relative; isolation: isolate; padding: 64px 0; }
-.st-key-band-final::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%; width: 100vw; margin-left: -50vw; background: #F5B700; }
+.st-key-band-final { background: #F5B700; border-radius: 40px; padding: 64px 56px; }
+@media (max-width: 700px) { .st-key-band-final { padding: 44px 24px; } .fiq-quien { padding: 28px 22px; } }
 </style>
 """
 
@@ -118,7 +120,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
 
   c1, c2 = st.columns([3, 1], vertical_alignment="center")
   with c1:
-    st.html('<div class="fiq-land" style="padding:20px 0"><span class="l-h3" style="font-size:34px!important">FronteraIQ</span> <span style="background:#F5B700;padding:1px 8px;border-radius:3px;font-size:15px;font-weight:700;vertical-align:6px">Pro</span></div>')
+    st.html('<div class="fiq-land" style="padding:20px 0"><span class="l-h3" style="font-size:34px!important">FronteraIQ</span> <span style="background:#F5B700;padding:1px 8px;border-radius:999px;font-size:15px;font-weight:700;vertical-align:6px">Pro</span></div>')
   with c2:
     with st.container(key="nav"):
       st.page_link(pagina_calculadora, label="Abrir la app", width="stretch")
@@ -133,10 +135,11 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
       st.html('<div style="height:32px"></div>')
       st.page_link(pagina_calculadora, label="Calcular mi primera importación")
     st.html('<p class="fiq-land l-nota" style="margin-top:20px;font-size:15px">Plan gratuito sin registro. Para pymes, comerciantes, agencias aduaneras y agentes de carga.</p>')
+    st.html('<div class="fiq-land l-chips"><span class="l-chip">Confecciones</span><span class="l-chip">Calzado</span><span class="l-chip">Celulares</span><span class="l-chip">Portátiles</span><span class="l-chip">Arroz</span><span class="l-chip">Autopartes</span><span class="l-chip">Medicamentos</span></div><p class="fiq-land l-nota" style="margin-top:10px;font-size:13px">Partidas ya cargadas. Cualquier otra la consultas en vivo en la DIAN.</p>')
   with der:
     with st.container(key="demo"):
       origen = f"TRM oficial {trm_fecha}: {_cop(trm).replace('$ ', '$')}" if trm_es_oficial else f"TRM de respaldo: {_cop(trm).replace('$ ', '$')}"
-      st.html(f'<div class="fiq-land" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline;border-bottom:2px dashed #9DB1B1;padding-bottom:14px"><span class="l-h3" style="font-size:29px!important">Liquidación de ejemplo</span><span class="l-nota">{origen}</span></div>')
+      st.html(f'<div class="fiq-land" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline;border-bottom:1px solid #D3DFDC;padding-bottom:14px"><span class="l-h3" style="font-size:29px!important">Liquidación de ejemplo</span><span class="l-nota">{origen}</span></div>')
       fob = st.slider("Valor FOB de la carga (USD)", 2000, 50000, 10000, 500, key="demo_fob")
       arancel = st.segmented_control("Arancel aplicable", [0, 5, 10, 15, 35], default=10,
                                      format_func=lambda v: f"{v} %", key="demo_arancel")
@@ -157,7 +160,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
 <p class="l-nota" style="margin-top:14px;font-size:13px">Ejemplo con flete de 1.200 USD, seguro de 150 USD, 1.000 unidades, $1.750.000 de gastos locales y 30 % de margen. En la app cambias todos los valores.</p></div>""")
 
   # CADENA
-  st.html("""<div class="fiq-land fiq-band fiq-band-dark" style="margin-top:72px"><div style="padding:80px 0">
+  st.html("""<div class="fiq-land fiq-band fiq-band-dark" style="margin-top:72px"><div style="padding:72px 56px">
 <h2 class="l-h2" style="max-width:760px">La misma cadena de costos que hoy armas en una hoja de cálculo.</h2>
 <p style="margin-top:18px;font-size:18px;max-width:640px;color:#B9CCCB">Cada paso se calcula sobre el anterior, igual que en una liquidación aduanera. Sin fórmulas que se rompen ni celdas que alguien borró.</p>
 <div class="fiq-cadena">
@@ -197,7 +200,7 @@ def mostrar_landing(pagina_calculadora, trm, trm_fecha, trm_es_oficial):
         st.page_link(pagina_calculadora, label="Probar la calculadora gratis")
   with p2:
     with st.container(key="plan-pro"):
-      st.html("""<div class="fiq-land"><div style="display:inline-block;background:#0B2527;color:#F5B700;font-weight:700;font-size:13px;padding:4px 10px;border-radius:3px">Recomendado para importadores frecuentes</div>
+      st.html("""<div class="fiq-land"><div style="display:inline-block;background:#0B2527;color:#F5B700;font-weight:700;font-size:13px;padding:5px 12px;border-radius:14px">Recomendado para importadores frecuentes</div>
 <h3 class="l-h3" style="font-size:34px!important;margin-top:12px!important">Pro Fronterizo</h3><div class="l-num l-precio">$39.000 COP <small>/ mes</small></div><div style="font-size:14px">o $390.000 COP al año: ahorras 2 meses</div>
 <p style="margin-top:16px">Para comerciantes, importadores frecuentes y consultores que necesitan cotizar rápido y de forma formal.</p>
 <ul style="margin:18px 0 0;padding-left:20px;display:grid;gap:8px"><li>Todo lo del plan Starter, más:</li><li>Descarga ilimitada de cotizaciones en PDF para entregar a tus clientes</li><li>Conversor multimoneda: COP, USD, bolívares (VES) y USDT, con tasas referenciales</li><li>Cotización multimercancía: varias mercancías en un embarque, cada una con su arancel e IVA, y flete, seguro y gastos repartidos según su valor</li></ul></div>""")
