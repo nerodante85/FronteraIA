@@ -253,3 +253,24 @@ def test_con_desglose_activo_los_cuatro_campos_fijos_quedan_deshabilitados(app_a
 def test_multimercancia_avisa_que_no_incluye_el_capital(app_pro):
   app_pro.checkbox(key="capital_activo").set_value(True).run()
   assert any("no incluye el costo de capital" in c.value.lower() for c in app_pro.caption)
+
+
+# ---------- el panel de cotización no puede tener líneas en blanco dentro del HTML ----------
+def _panel_html(at):
+  return [m.value for m in at.markdown if 'class="quote"' in m.value]
+
+
+def test_panel_de_cotizacion_sin_lineas_en_blanco(nueva_app):
+  # Markdown cierra un bloque HTML en una línea en blanco y pinta el resto como código.
+  at = nueva_app()
+  paneles = _panel_html(at)
+  assert len(paneles) == 1
+  assert not [n for n, linea in enumerate(paneles[0].splitlines()) if not linea.strip()]
+
+
+def test_panel_de_cotizacion_con_capital_sin_lineas_en_blanco(app_pro):
+  app_pro.checkbox(key="capital_activo").set_value(True).run()
+  app_pro.number_input(key="capital_dias").set_value(30).run()
+  paneles = _panel_html(app_pro)
+  assert "Costo de capital" in paneles[0]
+  assert not [n for n, linea in enumerate(paneles[0].splitlines()) if not linea.strip()]

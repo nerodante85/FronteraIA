@@ -1350,8 +1350,7 @@ def calculadora():
             <div class="quote-leyenda">
                 <div><b style="background:var(--fiq-teal-light)"></b><span>Valor CIF en pesos</span><span>$ {num(cif_cop)}</span></div>
                 <div><b style="background:var(--fiq-signal)"></b><span>Arancel + IVA</span><span>$ {num(total_tributos_cop)}</span></div>
-                <div><b style="background:#B9CCCB"></b><span>Gastos en Cúcuta</span><span>$ {num(total_gastos_locales_cop)}</span></div>
-                {leyenda_capital}
+                <div><b style="background:#B9CCCB"></b><span>Gastos en Cúcuta</span><span>$ {num(total_gastos_locales_cop)}</span></div>{leyenda_capital}
             </div>
             <div class="quote-filas">
                 <div class="quote-fila"><div><div class="quote-nombre">Costo unitario</div><div class="metric-subtext">Por unidad importada</div></div><div class="metric-value">$ {num(costo_unitario_cop, 2)}</div></div>
