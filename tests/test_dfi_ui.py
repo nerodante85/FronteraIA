@@ -90,3 +90,45 @@ def test_sin_capital_no_hay_linea_ni_cifras_en_el_csv():
   assert all("capital" not in c.lower() for c, _, _ in F["lineas_liquidacion"](_datos()))
   fila = F["fila_csv"](_datos())
   assert fila["Costo capital COP"] == 0
+
+
+# ---------- contenedores (Pro) ----------
+def _tabla_contenedores(at):
+  for df in at.dataframe:
+    if "Contenedor" in df.value.columns:
+      return df.value
+  return None
+
+
+def test_gratuito_ve_el_teaser_de_contenedores(nueva_app):
+  at = nueva_app()
+  assert any("contenedores" in i.value.lower() for i in at.info)
+  assert _tabla_contenedores(at) is None
+  assert metricas(at)[0] == "61.178.600"
+
+
+def test_pro_calcula_contenedores_para_la_carga(app_pro):
+  app_pro.number_input(key="cont_volumen").set_value(30.0).run()
+  app_pro.number_input(key="cont_peso").set_value(20000.0).run()
+  assert not app_pro.exception
+  tabla = _tabla_contenedores(app_pro)
+  fila = tabla[tabla["Contenedor"].str.contains("20")].iloc[0]
+  assert int(fila["Cantidad"]) == 1
+  assert metricas(app_pro)[0] == "61.178.600"  # no altera ninguna cifra de costo
+
+
+def test_pro_sin_carga_muestra_cero_contenedores(app_pro):
+  assert not app_pro.exception
+  assert (_tabla_contenedores(app_pro)["Cantidad"].astype(int) == 0).all()
+
+
+def test_csv_y_liquidacion_incluyen_el_contenedor_elegido():
+  d = _datos(contenedor="CONTENEDOR ST 20'", contenedores_cantidad=2)
+  fila = F["fila_csv"](d)
+  assert fila["Contenedor"] == "CONTENEDOR ST 20'" and fila["Contenedores cantidad"] == 2
+  assert ("Contenedores", "2 x CONTENEDOR ST 20'", False) in F["lineas_liquidacion"](d)
+
+
+def test_sin_contenedor_no_hay_linea():
+  assert all(c != "Contenedores" for c, _, _ in F["lineas_liquidacion"](_datos()))
+  assert F["fila_csv"](_datos())["Contenedor"] == ""

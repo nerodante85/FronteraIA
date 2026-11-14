@@ -136,7 +136,7 @@ hr { border-color: var(--fiq-line) !important; }
 .page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
 
 /* Pasos del formulario: paneles menta con campos blancos */
-.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital {
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores {
     background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
 .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
@@ -238,7 +238,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
 
 @media (max-width: 900px) {
     .st-key-quote { position: static; }
-    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital { padding: 20px 18px 14px; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
     /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
     [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
@@ -530,7 +530,11 @@ def lineas_liquidacion(d):
       ("Costo de capital del inventario", cop(d["costo_capital_cop"]), False),
       (f"Supuesto: {d['tasa_capital_pct']:g} % anual x {d['dias_capital']:g} dias", "", False),
   ] if d.get("costo_capital_cop") else []
-  return incoterm + [
+  contenedor = (
+      [("Contenedores", f"{d['contenedores_cantidad']:g} x {d['contenedor']}", False)]
+      if d.get("contenedor") else []
+  )
+  return incoterm + contenedor + [
       ("Valor FOB", usd(d["fob_usd"]), False),
       ("Flete internacional", usd(d["flete_usd"]), False),
       ("Seguro internacional", usd(d["seguro_usd"]), False),
@@ -586,6 +590,8 @@ def fila_csv(d):
       "Bodegaje COP": d["bodegaje_cop"],
       "Transporte local COP": d["transporte_local_cop"],
       "Otros gastos COP": d["otros_gastos_cop"],
+      "Contenedor": d.get("contenedor", ""),
+      "Contenedores cantidad": d.get("contenedores_cantidad", 0),
       "Costo capital COP": d.get("costo_capital_cop", 0),
       "Tasa capital %": d.get("tasa_capital_pct", 0),
       "Dias capital": d.get("dias_capital", 0),
@@ -1106,6 +1112,48 @@ def calculadora():
             " mientras llega y se vende. Disponible con licencia Pro."
         )
 
+    with st.container(key="paso-contenedores"):
+      st.markdown("#### Calculadora de contenedores (Pro)")
+      contenedor_elegido, contenedores_cantidad = "", 0
+      if licencias.nivel_permite(nivel, "pro"):
+        col_vol, col_peso = st.columns(2)
+        with col_vol:
+          cont_volumen = st.number_input(
+              "Volumen de la carga (m³)", min_value=0.0, max_value=100_000.0, value=0.0, step=1.0,
+              key="cont_volumen",
+          )
+        with col_peso:
+          cont_peso = st.number_input(
+              "Peso de la carga (kg)", min_value=0.0, max_value=10_000_000.0, value=0.0, step=100.0,
+              key="cont_peso",
+          )
+        resultados_cont = {
+            k: dfi.contenedores_necesarios(cont_volumen, cont_peso, k) for k in dfi.CONTENEDORES
+        }
+        st.dataframe(
+            pd.DataFrame([{
+                "Contenedor": dfi.CONTENEDORES[k]["nombre"],
+                "Cantidad": r["cantidad"],
+                "Ocupación volumen": f"{num(r['ocupacion_volumen_pct'], 1)} %",
+                "Ocupación peso": f"{num(r['ocupacion_peso_pct'], 1)} %",
+                "Limita": r["limitante"] or "-",
+            } for k, r in resultados_cont.items()]),
+            width="stretch", hide_index=True,
+        )
+        elegido = st.selectbox(
+            "Contenedor para la cotización", ["Ninguno"] + list(dfi.CONTENEDORES),
+            format_func=lambda k: k if k == "Ninguno" else dfi.CONTENEDORES[k]["nombre"],
+            key="cont_elegido",
+        )
+        if elegido != "Ninguno":
+          contenedor_elegido = dfi.CONTENEDORES[elegido]["nombre"]
+          contenedores_cantidad = resultados_cont[elegido]["cantidad"]
+      else:
+        st.info(
+            "Calculadora de contenedores: cuántos contenedores de 20' o 40' necesita tu carga por volumen"
+            " y peso, y qué tan llenos quedan. Disponible con licencia Pro."
+        )
+
 
   # ==================== CÁLCULOS ====================
   cif_usd = fob_usd + flete_usd + seguro_usd
@@ -1165,6 +1213,8 @@ def calculadora():
       "costo_unitario_cop": costo_unitario_cop,
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "contenedor": contenedor_elegido,
+      "contenedores_cantidad": contenedores_cantidad,
       "costo_capital_cop": costo_capital_cop,
       "tasa_capital_pct": capital_tasa if capital_activo else 0.0,
       "dias_capital": capital_dias if capital_activo else 0,
