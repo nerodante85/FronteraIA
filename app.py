@@ -24,6 +24,7 @@ if not (hasattr(_pv, "cargar_validaciones") and hasattr(_pv, "catalogo_ampliado"
 from partidas_validadas import cargar_validaciones, catalogo_ampliado  # noqa: E402
 import analitica  # noqa: E402
 import dian_arancel  # noqa: E402
+import dfi  # noqa: E402  (módulo DFI)
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -135,7 +136,7 @@ hr { border-color: var(--fiq-line) !important; }
 .page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
 
 /* Pasos del formulario: paneles menta con campos blancos */
-.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica {
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores, .st-key-paso-desglose {
     background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
 .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
@@ -237,7 +238,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
 
 @media (max-width: 900px) {
     .st-key-quote { position: static; }
-    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica { padding: 20px 18px 14px; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores, .st-key-paso-desglose { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
     /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
     [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
@@ -399,9 +400,22 @@ CAMPOS_CODIGO = (
 )
 
 
+CAMPOS_CODIGO_DFI = (
+    "costo_capital_cop", "tasa_capital_pct", "dias_capital", "incoterm", "contenedor",
+    "contenedores_cantidad",
+)
+
+
 def codigo_cotizacion(datos, emision):
-  """Código de cotización determinístico: misma operación y mismo día, mismo código."""
+  """Código de cotización determinístico: misma operación y mismo día, mismo código.
+  Las cifras del módulo DFI entran solo si se usan, para no cambiar el código de las cotizaciones
+  que no las usan."""
   base = "|".join(str(datos[campo]) for campo in CAMPOS_CODIGO)
+  extras = [f"{c}={datos[c]}" for c in CAMPOS_CODIGO_DFI if datos.get(c)]
+  if datos.get("desglose_activo"):
+    extras.append(f"desglose={sorted((datos.get('desglose') or {}).items())}|gastos={datos['gastos_locales_cop']}")
+  if extras:
+    base += "|" + "|".join(extras)
   huella = hashlib.sha256(base.encode("utf-8")).hexdigest()[:6].upper()
   return f"FIQ-{emision:%Y%m%d}-{huella}"
 
@@ -524,7 +538,25 @@ def lineas_liquidacion(d):
   """Filas (concepto, valor, destacada) de la liquidación, para el PDF."""
   usd = lambda v: f"${num(v, 2)} USD"
   cop = lambda v: f"${num(v)} COP"
-  return [
+  incoterm = [("INCOTERM acordado", d["incoterm"], False)] if d.get("incoterm") else []
+  capital = [
+      ("Costo de capital del inventario", cop(d["costo_capital_cop"]), False),
+      (f"Supuesto: {d['tasa_capital_pct']:g} % anual x {d['dias_capital']:g} dias", "", False),
+  ] if d.get("costo_capital_cop") else []
+  if d.get("desglose_activo"):
+    gastos = [(comp, cop(v), False) for comp, v in d["desglose"].items()]
+  else:
+    gastos = [
+        ("Agenciamiento SIA", cop(d["agenciamiento_cop"]), False),
+        ("Bodegaje / depósito", cop(d["bodegaje_cop"]), False),
+        ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
+        ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
+    ]
+  contenedor = (
+      [("Contenedores", f"{d['contenedores_cantidad']:g} x {d['contenedor']}", False)]
+      if d.get("contenedor") else []
+  )
+  return incoterm + contenedor + [
       ("Valor FOB", usd(d["fob_usd"]), False),
       ("Flete internacional", usd(d["flete_usd"]), False),
       ("Seguro internacional", usd(d["seguro_usd"]), False),
@@ -534,11 +566,9 @@ def lineas_liquidacion(d):
       ("Base gravable del IVA (CIF + arancel)", cop(d["cif_cop"] + d["arancel_cop"]), False),
       (f"IVA DIAN ({d['pct_iva']:g} %)", cop(d["iva_cop"]), False),
       ("Total impuestos DIAN", cop(d["total_tributos_cop"]), False),
-      ("Agenciamiento SIA", cop(d["agenciamiento_cop"]), False),
-      ("Bodegaje / depósito", cop(d["bodegaje_cop"]), False),
-      ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
-      ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
+  ] + gastos + [
       ("Total gastos logísticos Cúcuta", cop(d["gastos_locales_cop"]), False),
+  ] + capital + [
       ("COSTO TOTAL LANDED", cop(d["costo_total_landed_cop"]), True),
       ("COSTO LANDED UNITARIO", f"${num(d['costo_unitario_cop'], 2)} COP", True),
       (f"Margen deseado ({d['pct_margen']:g} % sobre el precio)", "", False),
@@ -556,11 +586,16 @@ def texto_para_csv(valor):
 
 def fila_csv(d):
   """Una fila de CSV con todo lo necesario para reconstruir la cotización."""
+  por_componente = {
+      f"Gasto {comp} COP": d["desglose"].get(comp, 0) for comp in dfi.COMPONENTES_IMPORTACION
+  } if d.get("desglose_activo") else {}
+  fijo = (lambda v: "") if d.get("desglose_activo") else (lambda v: v)
   return {k: texto_para_csv(v) for k, v in {
       "Codigo cotizacion": d["codigo"],
       "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
       "Producto": d["producto"],
       "Partida": d["partida"],
+      "INCOTERM": d.get("incoterm", ""),
       "Unidades": d["unidades"],
       "FOB USD": d["fob_usd"],
       "Flete USD": d["flete_usd"],
@@ -574,10 +609,17 @@ def fila_csv(d):
       "CIF COP": d["cif_cop"],
       "Arancel COP": d["arancel_cop"],
       "IVA COP": d["iva_cop"],
-      "Agenciamiento COP": d["agenciamiento_cop"],
-      "Bodegaje COP": d["bodegaje_cop"],
-      "Transporte local COP": d["transporte_local_cop"],
-      "Otros gastos COP": d["otros_gastos_cop"],
+      "Agenciamiento COP": fijo(d["agenciamiento_cop"]),
+      "Bodegaje COP": fijo(d["bodegaje_cop"]),
+      "Transporte local COP": fijo(d["transporte_local_cop"]),
+      "Otros gastos COP": fijo(d["otros_gastos_cop"]),
+      "Gastos locales COP": d["gastos_locales_cop"],
+      **por_componente,
+      "Contenedor": d.get("contenedor", ""),
+      "Contenedores cantidad": d.get("contenedores_cantidad", 0),
+      "Costo capital COP": d.get("costo_capital_cop", 0),
+      "Tasa capital %": d.get("tasa_capital_pct", 0),
+      "Dias capital": d.get("dias_capital", 0),
       "Costo landed COP": d["costo_total_landed_cop"],
       "Costo unitario COP": d["costo_unitario_cop"],
       "Margen %": d["pct_margen"],
@@ -688,8 +730,9 @@ def _consultar_licencia(clave, sesion, url, llave):
   return licencias.validar_licencia(clave, sesion, url, llave)
 
 
-def validar_licencia_pro(clave):
-  """Devuelve (es_pro, mensaje_de_error). Falla cerrada: si no se puede verificar, no hay Pro."""
+def validar_licencia_nivel(clave):
+  """Devuelve (nivel, mensaje_de_error); nivel es "pro", "agencia" o None.
+  Falla cerrada: si no se puede verificar, no hay nivel."""
   config = _config_licencias()
   if config:
     if "sesion_id" not in st.session_state:
@@ -697,19 +740,23 @@ def validar_licencia_pro(clave):
     try:
       resultado = _consultar_licencia(clave, st.session_state["sesion_id"], *config)
     except Exception:
-      return False, licencias.mensaje_de_rechazo("servicio_no_disponible")
+      return None, licencias.mensaje_de_rechazo("servicio_no_disponible")
     if resultado.get("valida"):
-      return True, None
-    return False, licencias.mensaje_de_rechazo(resultado.get("motivo"))
+      return resultado.get("nivel"), None
+    return None, licencias.mensaje_de_rechazo(resultado.get("motivo"))
 
   clave_valida = _clave_pro_configurada()
   if clave_valida and hmac.compare_digest(
       clave.encode("utf-8"), str(clave_valida).encode("utf-8")
   ):
-    return True, None
-  return False, "Clave de licencia no válida."
+    return "pro", None
+  return None, "Clave de licencia no válida."
 
 
+def validar_licencia_pro(clave):
+  """Devuelve (es_pro, mensaje_de_error). Falla cerrada: si no se puede verificar, no hay Pro."""
+  nivel, error = validar_licencia_nivel(clave)
+  return nivel is not None, error
 
 
 def equivalencias_moneda(costo_cop, trm, bs_por_usd, cop_por_usdt):
@@ -761,7 +808,8 @@ def calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct
   return lineas, totales
 
 
-def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_cop, pct_margen, def_arancel, def_iva):
+def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_cop, pct_margen, def_arancel, def_iva,
+                           capital_activo=False):
   """Cotización de un embarque con varias mercancías (función Pro)."""
   st.divider()
   titulo("mercancia", "Cotización multimercancía (Pro)", 3)
@@ -777,6 +825,8 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
       "Usa el flete, el seguro, los gastos locales, el margen y la TRM de arriba. "
       "El flete, el seguro y los gastos se reparten según el peso de cada línea en el FOB total."
   )
+  if capital_activo:
+    st.caption("Esta cotización no incluye el costo de capital del inventario que activaste arriba.")
   base = pd.DataFrame([
       {"Producto": "Mercancía 1", "Partida": "", "FOB (USD)": 5000.0, "Unidades": 100.0,
        "Arancel (%)": float(def_arancel), "IVA (%)": float(def_iva)},
@@ -840,18 +890,21 @@ def calculadora():
   tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"], horizontal=True)
 
   es_pro = False
+  nivel = None
   if tipo_plan == "Pro / Premium":
     clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
     if not _config_licencias() and not _clave_pro_configurada():
       st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
     elif clave_pro:
-      es_pro, error_licencia = validar_licencia_pro(clave_pro)
+      nivel, error_licencia = validar_licencia_nivel(clave_pro)
+      es_pro = nivel is not None
       if es_pro:
         registrar_evento("licencia_pro_activada")
         st.sidebar.success("Licencia Pro activa")
       else:
         st.sidebar.warning(error_licencia)
 
+  st.session_state["nivel_licencia"] = nivel  # pro / agencia / None; lo leen las funciones de pago
   st.sidebar.divider()
   titulo("parametros", "Parámetros de Monedas", 2, st.sidebar)
   trm = st.sidebar.number_input(
@@ -995,20 +1048,49 @@ def calculadora():
         pct_iva = st.number_input(
             "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
         )
+    with st.container(key="paso-incoterm"):
+      with st.expander("¿Qué INCOTERM te conviene?"):
+        st.caption(
+            "Responde como vendedor. El asistente solo orienta y deja constancia en la cotización:"
+            " no cambia ninguna cifra."
+        )
+        respuestas = [
+            st.radio(texto, ["Sí", "No"], index=0, horizontal=True, key=f"incoterm_p{i}") == "Sí"
+            for i, texto in enumerate([
+                "¿Está preparado para asumir todos los costos y riesgos hasta las instalaciones del comprador?",
+                "¿Puede llevar la mercancía hasta el lugar de entrega acordado (al otro lado de la frontera)?",
+                "¿Se pueden entregar las mercancías al comprador sin poner en peligro el pago?",
+                "¿Puede obtener la autorización de importación y realizar los trámites? ¿Puede recuperar el IVA?",
+            ], 1)
+        ]
+        sugeridos = dfi.sugerir_incoterm(*respuestas)
+        for codigo in sugeridos:
+          st.markdown(f"**{codigo}** — {dfi.DESCRIPCION_INCOTERM[codigo]}")
+        st.caption(
+            "Solo «todo Sí → DDP» está confirmado contra el simulador DFI; el resto sigue las reglas"
+            " generales de Incoterms 2020."
+        )
+      incoterm_acordado = st.selectbox(
+          "INCOTERM acordado (opcional)", ["No definido"] + list(dfi.DESCRIPCION_INCOTERM),
+          key="incoterm_acordado",
+      )
     with st.container(key="paso-logistica"):
       titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
       st.caption(
           "Ingresa estos gastos con su IVA incluido. Si tu negocio no puede descontar ese IVA,"
           " es parte de tu costo real."
       )
+      fijos_off = licencias.nivel_permite(nivel, "agencia") and st.session_state.get("desglose_activo", False)
+      if fijos_off:
+        st.caption("Con el desglose activo, estos cuatro gastos se editan en la tabla de desglose.")
       col_g1, col_g2 = st.columns(2)
       with col_g1:
         agenciamiento_cop = st.number_input(
-            "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0
+            "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0, disabled=fijos_off
         )
       with col_g2:
         bodegaje_cop = st.number_input(
-            "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0
+            "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0, disabled=fijos_off
         )
       col_g3, col_g4 = st.columns(2)
       with col_g3:
@@ -1018,6 +1100,7 @@ def calculadora():
             max_value=1_000_000_000_000.0,
             value=800000.0,
             step=50000.0,
+            disabled=fijos_off,
         )
       with col_g4:
         otros_gastos_cop = st.number_input(
@@ -1026,6 +1109,7 @@ def calculadora():
             max_value=1_000_000_000_000.0,
             value=200000.0,
             step=25000.0,
+            disabled=fijos_off,
         )
 
       pct_margen = st.number_input(
@@ -1035,6 +1119,111 @@ def calculadora():
           value=30.0,
           step=1.0,
       )
+
+
+  with col_form:
+    with st.container(key="paso-desglose"):
+      st.markdown("#### Gastos desglosados por componente DFI (Agencia)")
+      desglose_activo, filas_desglose = False, []
+      if licencias.nivel_permite(nivel, "agencia"):
+        desglose_activo = st.checkbox(
+            "Desglosar gastos por componente (reemplaza los 4 gastos de Logística Frontera)",
+            key="desglose_activo",
+        )
+        if desglose_activo:
+          editado = st.data_editor(
+              pd.DataFrame([
+                  {"Componente": "Agentes", "Valor (COP)": float(agenciamiento_cop)},
+                  {"Componente": "Almacenaje", "Valor (COP)": float(bodegaje_cop)},
+                  {"Componente": "Transporte importador", "Valor (COP)": float(transporte_local_cop)},
+                  {"Componente": "Otros", "Valor (COP)": float(otros_gastos_cop)},
+              ]),
+              num_rows="dynamic", key="desglose_gastos", width="stretch", hide_index=True,
+              column_config={
+                  "Componente": st.column_config.SelectboxColumn(
+                      options=list(dfi.COMPONENTES_IMPORTACION), required=True),
+                  "Valor (COP)": st.column_config.NumberColumn(
+                      min_value=0.0, max_value=1_000_000_000_000.0, step=25000.0),
+              },
+          )
+          filas_desglose = [
+              {"componente": f["Componente"], "valor_cop": f["Valor (COP)"]}
+              for _, f in editado.iterrows()
+          ]
+        st.caption(
+            "Precargado con tus 4 gastos actuales. Con el desglose activo, el total de esta tabla es el"
+            " gasto local del costo landed."
+        )
+      else:
+        st.info(
+            "Desglosa los gastos locales por componente DFI (almacenaje, aduaneros, agentes, bancarios,"
+            " documentación y más) para justificar cada cobro a tu cliente. Disponible con licencia Agencia."
+        )
+
+    with st.container(key="paso-capital"):
+      st.markdown("#### Costo de capital del inventario (Pro)")
+      if licencias.nivel_permite(nivel, "pro"):
+        capital_activo = st.checkbox("Incluir costo de capital del inventario", key="capital_activo")
+        capital_tasa = st.number_input(
+            "Tasa de interés anual (%)", min_value=0.0, max_value=1000.0, value=12.0, step=0.5,
+            key="capital_tasa",
+        )
+        capital_dias = st.number_input(
+            "Días de inmovilización del inventario", min_value=0, max_value=3650, value=30, step=1,
+            key="capital_dias",
+        )
+        st.caption(
+            "Costo = (CIF + tributos + gastos locales) × tasa anual × días / 365. Se suma al costo landed"
+            " solo si marcas la casilla."
+        )
+      else:
+        capital_activo, capital_tasa, capital_dias = False, 0.0, 0
+        st.info(
+            "Costo de capital del inventario: suma al costo landed lo que cuesta financiar la mercancía"
+            " mientras llega y se vende. Disponible con licencia Pro."
+        )
+
+    with st.container(key="paso-contenedores"):
+      st.markdown("#### Calculadora de contenedores (Pro)")
+      contenedor_elegido, contenedores_cantidad = "", 0
+      if licencias.nivel_permite(nivel, "pro"):
+        col_vol, col_peso = st.columns(2)
+        with col_vol:
+          cont_volumen = st.number_input(
+              "Volumen de la carga (m³)", min_value=0.0, max_value=100_000.0, value=0.0, step=1.0,
+              key="cont_volumen",
+          )
+        with col_peso:
+          cont_peso = st.number_input(
+              "Peso de la carga (kg)", min_value=0.0, max_value=10_000_000.0, value=0.0, step=100.0,
+              key="cont_peso",
+          )
+        resultados_cont = {
+            k: dfi.contenedores_necesarios(cont_volumen, cont_peso, k) for k in dfi.CONTENEDORES
+        }
+        st.dataframe(
+            pd.DataFrame([{
+                "Contenedor": dfi.CONTENEDORES[k]["nombre"],
+                "Cantidad": r["cantidad"],
+                "Ocupación volumen": f"{num(r['ocupacion_volumen_pct'], 1)} %",
+                "Ocupación peso": f"{num(r['ocupacion_peso_pct'], 1)} %",
+                "Limita": r["limitante"] or "-",
+            } for k, r in resultados_cont.items()]),
+            width="stretch", hide_index=True,
+        )
+        elegido = st.selectbox(
+            "Contenedor para la cotización", ["Ninguno"] + list(dfi.CONTENEDORES),
+            format_func=lambda k: k if k == "Ninguno" else dfi.CONTENEDORES[k]["nombre"],
+            key="cont_elegido",
+        )
+        if elegido != "Ninguno":
+          contenedor_elegido = dfi.CONTENEDORES[elegido]["nombre"]
+          contenedores_cantidad = resultados_cont[elegido]["cantidad"]
+      else:
+        st.info(
+            "Calculadora de contenedores: cuántos contenedores de 20' o 40' necesita tu carga por volumen"
+            " y peso, y qué tan llenos quedan. Disponible con licencia Pro."
+        )
 
 
   # ==================== CÁLCULOS ====================
@@ -1049,7 +1238,14 @@ def calculadora():
   total_gastos_locales_cop = (
       agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
   )
-  costo_total_landed_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+  desglose = dfi.gastos_por_componente(filas_desglose) if desglose_activo else {}
+  if desglose_activo:
+    total_gastos_locales_cop = sum(desglose.values())
+  costo_antes_capital_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+  costo_capital_cop = (
+      dfi.costo_capital(costo_antes_capital_cop, capital_tasa, capital_dias) if capital_activo else 0.0
+  )
+  costo_total_landed_cop = costo_antes_capital_cop + costo_capital_cop
   costo_unitario_cop = costo_total_landed_cop / unidades if unidades > 0 else 0
   precio_sugerido_unitario_cop = (
       costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
@@ -1091,6 +1287,14 @@ def calculadora():
       "costo_unitario_cop": costo_unitario_cop,
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "desglose": desglose,
+      "desglose_activo": desglose_activo,
+      "contenedor": contenedor_elegido,
+      "contenedores_cantidad": contenedores_cantidad,
+      "costo_capital_cop": costo_capital_cop,
+      "tasa_capital_pct": capital_tasa if capital_activo else 0.0,
+      "dias_capital": capital_dias if capital_activo else 0,
+      "incoterm": "" if incoterm_acordado == "No definido" else incoterm_acordado,
       "emision": emision,
       "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
       "estado_aranceles": estado_aranceles(
@@ -1124,6 +1328,14 @@ def calculadora():
   pct_cif = cif_cop / base_barra * 100
   pct_trib = total_tributos_cop / base_barra * 100
   pct_gastos = total_gastos_locales_cop / base_barra * 100
+  pct_capital = costo_capital_cop / base_barra * 100
+  barra_capital = (
+      f'<i style="width:{pct_capital:.2f}%;background:#D9E3E2"></i>' if costo_capital_cop > 0 else ""
+  )
+  leyenda_capital = (
+      f'<div><b style="background:#D9E3E2"></b><span>Costo de capital</span><span>$ {num(costo_capital_cop)}</span></div>'
+      if costo_capital_cop > 0 else ""
+  )
 
   with panel:
     st.markdown(
@@ -1133,12 +1345,13 @@ def calculadora():
             <div class="metric-value is-hero">$ {num(costo_total_landed_cop)}</div>
             <div class="metric-subtext">COP puesto en Cúcuta, todo incluido</div>
             <div class="quote-barra" role="img" aria-label="Proporción de CIF, tributos y gastos locales en el costo landed">
-                <i style="width:{pct_cif:.2f}%;background:var(--fiq-teal-light)"></i><i style="width:{pct_trib:.2f}%;background:var(--fiq-signal)"></i><i style="width:{pct_gastos:.2f}%;background:#B9CCCB"></i>
+                <i style="width:{pct_cif:.2f}%;background:var(--fiq-teal-light)"></i><i style="width:{pct_trib:.2f}%;background:var(--fiq-signal)"></i><i style="width:{pct_gastos:.2f}%;background:#B9CCCB"></i>{barra_capital}
             </div>
             <div class="quote-leyenda">
                 <div><b style="background:var(--fiq-teal-light)"></b><span>Valor CIF en pesos</span><span>$ {num(cif_cop)}</span></div>
                 <div><b style="background:var(--fiq-signal)"></b><span>Arancel + IVA</span><span>$ {num(total_tributos_cop)}</span></div>
                 <div><b style="background:#B9CCCB"></b><span>Gastos en Cúcuta</span><span>$ {num(total_gastos_locales_cop)}</span></div>
+                {leyenda_capital}
             </div>
             <div class="quote-filas">
                 <div class="quote-fila"><div><div class="quote-nombre">Costo unitario</div><div class="metric-subtext">Por unidad importada</div></div><div class="metric-value">$ {num(costo_unitario_cop, 2)}</div></div>
@@ -1172,16 +1385,18 @@ def calculadora():
 
     with col_chart:
       st.markdown("#### Distribución de Costos")
-      df_chart = pd.DataFrame({
-          "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
-          "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
-      })
+      conceptos_chart = ["CIF", "Tributos DIAN", "Gastos Locales"]
+      montos_chart = [cif_cop, total_tributos_cop, total_gastos_locales_cop]
+      if costo_capital_cop > 0:
+        conceptos_chart.append("Costo de capital")
+        montos_chart.append(costo_capital_cop)
+      df_chart = pd.DataFrame({"Concepto": conceptos_chart, "Monto_COP": montos_chart})
       fig = px.pie(
           df_chart,
           values="Monto_COP",
           names="Concepto",
           hole=0.55,
-          color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
+          color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1", "#D9E3E2"],
       )
       fig.update_traces(marker=dict(line=dict(color="#EEF4F2", width=3)))
       fig.update_layout(
@@ -1214,6 +1429,9 @@ def calculadora():
               f"$ {num(costo_total_landed_cop)} COP",
           ],
       }
+      if costo_capital_cop > 0:
+        liquidacion_data["Concepto"].insert(-1, "Costo de capital")
+        liquidacion_data["Monto"].insert(-1, f"$ {num(costo_capital_cop)} COP")
       st.dataframe(
           pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
       )
@@ -1270,7 +1488,8 @@ def calculadora():
 
 
   seccion_multimercancia(
-      es_pro, trm, flete_usd, seguro_usd, total_gastos_locales_cop, pct_margen, def_arancel, def_iva
+      es_pro, trm, flete_usd, seguro_usd, total_gastos_locales_cop, pct_margen, def_arancel, def_iva,
+      capital_activo=capital_activo,
   )
 
 
