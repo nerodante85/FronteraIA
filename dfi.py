@@ -79,3 +79,37 @@ def contenedores_necesarios(volumen_m3, peso_kg, tipo):
       "cantidad": cantidad, "ocupacion_volumen_pct": ocup_vol, "ocupacion_peso_pct": ocup_peso,
       "limitante": "volumen" if ocup_vol >= ocup_peso else "peso",
   }
+
+
+COMPONENTES_IMPORTACION = (
+    "Transporte importador", "Almacenaje", "Aduaneros", "Agentes", "Bancarios",
+    "Documentación", "Seguro local", "Manipuleo de desembarque", "Otros",
+)
+
+
+def _valor_valido(valor):
+  """Número positivo o 0: None, texto, NaN y negativos cuentan 0."""
+  try:
+    v = float(valor)
+  except (TypeError, ValueError):
+    return 0.0
+  return v if v > 0 else 0.0
+
+
+def gastos_por_componente(filas):
+  """Suma los gastos por componente DFI. `filas`: dicts con `componente` y `valor_cop`.
+  Un componente vacío o desconocido se agrupa en "Otros"; los valores en 0 no aparecen."""
+  total = {}
+  for f in filas:
+    valor = _valor_valido(f.get("valor_cop"))
+    if valor <= 0:
+      continue
+    comp = f.get("componente")
+    comp = comp if comp in COMPONENTES_IMPORTACION else "Otros"
+    total[comp] = total.get(comp, 0.0) + valor
+  return total
+
+
+def total_gastos(filas):
+  """Total en COP de los gastos desglosados."""
+  return sum(gastos_por_componente(filas).values())

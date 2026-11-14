@@ -136,7 +136,7 @@ hr { border-color: var(--fiq-line) !important; }
 .page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
 
 /* Pasos del formulario: paneles menta con campos blancos */
-.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores {
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores, .st-key-paso-desglose {
     background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
 .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
@@ -238,7 +238,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
 
 @media (max-width: 900px) {
     .st-key-quote { position: static; }
-    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores { padding: 20px 18px 14px; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital, .st-key-paso-contenedores, .st-key-paso-desglose { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
     /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
     [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
@@ -530,6 +530,15 @@ def lineas_liquidacion(d):
       ("Costo de capital del inventario", cop(d["costo_capital_cop"]), False),
       (f"Supuesto: {d['tasa_capital_pct']:g} % anual x {d['dias_capital']:g} dias", "", False),
   ] if d.get("costo_capital_cop") else []
+  if d.get("desglose"):
+    gastos = [(comp, cop(v), False) for comp, v in d["desglose"].items()]
+  else:
+    gastos = [
+        ("Agenciamiento SIA", cop(d["agenciamiento_cop"]), False),
+        ("Bodegaje / depósito", cop(d["bodegaje_cop"]), False),
+        ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
+        ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
+    ]
   contenedor = (
       [("Contenedores", f"{d['contenedores_cantidad']:g} x {d['contenedor']}", False)]
       if d.get("contenedor") else []
@@ -544,10 +553,7 @@ def lineas_liquidacion(d):
       ("Base gravable del IVA (CIF + arancel)", cop(d["cif_cop"] + d["arancel_cop"]), False),
       (f"IVA DIAN ({d['pct_iva']:g} %)", cop(d["iva_cop"]), False),
       ("Total impuestos DIAN", cop(d["total_tributos_cop"]), False),
-      ("Agenciamiento SIA", cop(d["agenciamiento_cop"]), False),
-      ("Bodegaje / depósito", cop(d["bodegaje_cop"]), False),
-      ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
-      ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
+  ] + gastos + [
       ("Total gastos logísticos Cúcuta", cop(d["gastos_locales_cop"]), False),
   ] + capital + [
       ("COSTO TOTAL LANDED", cop(d["costo_total_landed_cop"]), True),
@@ -567,6 +573,9 @@ def texto_para_csv(valor):
 
 def fila_csv(d):
   """Una fila de CSV con todo lo necesario para reconstruir la cotización."""
+  por_componente = {
+      f"Gasto {comp} COP": d["desglose"].get(comp, 0) for comp in dfi.COMPONENTES_IMPORTACION
+  } if d.get("desglose") else {}
   return {k: texto_para_csv(v) for k, v in {
       "Codigo cotizacion": d["codigo"],
       "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
@@ -590,6 +599,7 @@ def fila_csv(d):
       "Bodegaje COP": d["bodegaje_cop"],
       "Transporte local COP": d["transporte_local_cop"],
       "Otros gastos COP": d["otros_gastos_cop"],
+      **por_componente,
       "Contenedor": d.get("contenedor", ""),
       "Contenedores cantidad": d.get("contenedores_cantidad", 0),
       "Costo capital COP": d.get("costo_capital_cop", 0),
@@ -1089,6 +1099,44 @@ def calculadora():
 
 
   with col_form:
+    with st.container(key="paso-desglose"):
+      st.markdown("#### Gastos desglosados por componente DFI (Agencia)")
+      desglose_activo, filas_desglose = False, []
+      if licencias.nivel_permite(nivel, "agencia"):
+        desglose_activo = st.checkbox(
+            "Desglosar gastos por componente (reemplaza los 4 gastos de Logística Frontera)",
+            key="desglose_activo",
+        )
+        if desglose_activo:
+          editado = st.data_editor(
+              pd.DataFrame([
+                  {"Componente": "Agentes", "Valor (COP)": float(agenciamiento_cop)},
+                  {"Componente": "Almacenaje", "Valor (COP)": float(bodegaje_cop)},
+                  {"Componente": "Transporte importador", "Valor (COP)": float(transporte_local_cop)},
+                  {"Componente": "Otros", "Valor (COP)": float(otros_gastos_cop)},
+              ]),
+              num_rows="dynamic", key="desglose_gastos", width="stretch", hide_index=True,
+              column_config={
+                  "Componente": st.column_config.SelectboxColumn(
+                      options=list(dfi.COMPONENTES_IMPORTACION), required=True),
+                  "Valor (COP)": st.column_config.NumberColumn(
+                      min_value=0.0, max_value=1_000_000_000_000.0, step=25000.0),
+              },
+          )
+          filas_desglose = [
+              {"componente": f["Componente"], "valor_cop": f["Valor (COP)"]}
+              for _, f in editado.iterrows()
+          ]
+        st.caption(
+            "Precargado con tus 4 gastos actuales. Con el desglose activo, el total de esta tabla es el"
+            " gasto local del costo landed."
+        )
+      else:
+        st.info(
+            "Desglosa los gastos locales por componente DFI (almacenaje, aduaneros, agentes, bancarios,"
+            " documentación y más) para justificar cada cobro a tu cliente. Disponible con licencia Agencia."
+        )
+
     with st.container(key="paso-capital"):
       st.markdown("#### Costo de capital del inventario (Pro)")
       if licencias.nivel_permite(nivel, "pro"):
@@ -1167,6 +1215,9 @@ def calculadora():
   total_gastos_locales_cop = (
       agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
   )
+  desglose = dfi.gastos_por_componente(filas_desglose) if desglose_activo else {}
+  if desglose_activo:
+    total_gastos_locales_cop = sum(desglose.values())
   costo_antes_capital_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
   costo_capital_cop = (
       dfi.costo_capital(costo_antes_capital_cop, capital_tasa, capital_dias) if capital_activo else 0.0
@@ -1213,6 +1264,7 @@ def calculadora():
       "costo_unitario_cop": costo_unitario_cop,
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "desglose": desglose,
       "contenedor": contenedor_elegido,
       "contenedores_cantidad": contenedores_cantidad,
       "costo_capital_cop": costo_capital_cop,

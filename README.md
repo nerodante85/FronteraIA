@@ -30,19 +30,24 @@ FronteraIQ es una aplicación web que calcula en segundos el costo real de una i
 - **Exportación trazable** a CSV, y a PDF de cotización en el plan Pro. Cada cotización lleva un **código** (`FIQ-AAAAMMDD-XXXXXX`, derivado de los datos de la operación y la fecha), la fecha de emisión, la TRM con su origen (oficial, de respaldo o ingresada a mano), los porcentajes de arancel e IVA aplicados, el estado de validación de esos porcentajes y el desglose de gastos, de modo que la cotización pueda reconstruirse y defenderse.
 - **Contacto directo por WhatsApp** con un mensaje prellenado con los datos de la operación.
 
-## Planes: Gratuito y Pro
+## Planes: Gratuito, Pro y Agencia
 
-| Capacidad | Gratuito | Pro |
-|---|:---:|:---:|
-| Cálculo de Costo Landed y precio sugerido | ✅ | ✅ |
-| Base NANDINA y TRM oficial | ✅ | ✅ |
-| Gráfico y tabla de liquidación | ✅ | ✅ |
-| Exportar a CSV | ✅ | ✅ |
-| Contacto por WhatsApp | ✅ | ✅ |
-| Cotización en PDF | — | ✅ |
-| Equivalencia multimoneda fronteriza (USDT y bolívares) | — | ✅ |
+| Capacidad | Gratuito | Pro | Agencia |
+|---|:---:|:---:|:---:|
+| Cálculo de Costo Landed y precio sugerido | ✅ | ✅ | ✅ |
+| Base NANDINA y TRM oficial | ✅ | ✅ | ✅ |
+| Gráfico y tabla de liquidación | ✅ | ✅ | ✅ |
+| Exportar a CSV | ✅ | ✅ | ✅ |
+| Contacto por WhatsApp | ✅ | ✅ | ✅ |
+| Asistente de INCOTERM (orienta y queda en la cotización) | ✅ | ✅ | ✅ |
+| Cotización en PDF | — | ✅ | ✅ |
+| Equivalencia multimoneda fronteriza (USDT y bolívares) | — | ✅ | ✅ |
+| Cotización multimercancía | — | ✅ | ✅ |
+| Costo de capital del inventario | — | ✅ | ✅ |
+| Calculadora de contenedores (20' y 40') | — | ✅ | ✅ |
+| Gastos desglosados por componente DFI | — | — | ✅ |
 
-> El plan Pro se activa en la barra lateral con una clave de licencia. En la versión actual es un mecanismo de demostración (ver [Limitaciones](#limitaciones-y-descargo-de-responsabilidad)).
+> El nivel de la licencia (`pro` o `agencia`) lo entrega la función `validar_licencia` de Supabase. Sin Supabase, la clave única de respaldo equivale al nivel Pro.
 
 ## Cómo se calcula
 
@@ -54,7 +59,8 @@ Base IVA       = CIF (COP) + Arancel
 IVA            = Base IVA × % IVA
 Tributos DIAN  = Arancel + IVA
 Gastos locales = Agenciamiento + Bodegaje + Transporte + Otros
-Costo Landed   = CIF (COP) + Tributos DIAN + Gastos locales
+Costo de capital (opcional, Pro) = (CIF (COP) + Tributos DIAN + Gastos locales) × tasa anual × días / 365
+Costo Landed   = CIF (COP) + Tributos DIAN + Gastos locales + Costo de capital
 Costo unitario = Costo Landed ÷ Unidades
 Precio sugerido = Costo unitario ÷ (1 − % margen)
 ```

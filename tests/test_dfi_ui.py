@@ -132,3 +132,67 @@ def test_csv_y_liquidacion_incluyen_el_contenedor_elegido():
 def test_sin_contenedor_no_hay_linea():
   assert all(c != "Contenedores" for c, _, _ in F["lineas_liquidacion"](_datos()))
   assert F["fila_csv"](_datos())["Contenedor"] == ""
+
+
+# ---------- gastos desglosados (Agencia) ----------
+import requests as _requests  # noqa: E402
+
+import analitica as _analitica  # noqa: E402
+from test_licencias_cliente import LLAVE as _LLAVE, URL as _URL, Resp as _Resp, _abrir_pro  # noqa: E402
+
+
+@pytest.fixture
+def app_agencia(monkeypatch, nueva_app):
+  monkeypatch.setattr(_analitica, "registrar", lambda *a, **k: False)
+  monkeypatch.setenv("SUPABASE_URL", _URL)
+  monkeypatch.setenv("SUPABASE_SERVICE_KEY", _LLAVE)
+  monkeypatch.setattr(_requests, "post", lambda *a, **k: _Resp({"valida": True, "nivel": "agencia"}))
+  return _abrir_pro(nueva_app(), "FIQ-AAAA-BBBB-CCCC")
+
+
+def _casilla_desglose(at):
+  return [c for c in at.checkbox if c.key == "desglose_activo"]
+
+
+def test_gratuito_y_pro_solo_ven_el_teaser_del_desglose(nueva_app, app_pro):
+  for at in (nueva_app(), app_pro):
+    assert _casilla_desglose(at) == []
+    assert any("desglos" in i.value.lower() for i in at.info)
+    assert metricas(at)[0] == "61.178.600"
+
+
+def test_agencia_con_desglose_igual_al_actual_no_cambia_el_landed(app_agencia):
+  app_agencia.checkbox(key="desglose_activo").set_value(True).run()
+  assert not app_agencia.exception
+  assert metricas(app_agencia)[0] == "61.178.600"
+
+
+def test_agencia_editar_una_fila_cambia_los_gastos_y_el_landed(app_agencia):
+  app_agencia.checkbox(key="desglose_activo").set_value(True).run()
+  # La fila 0 (Agentes) pasa de 450.000 a 950.000: los gastos locales suben 500.000 (sin impuestos).
+  app_agencia.session_state["desglose_gastos"] = {
+      "edited_rows": {0: {"Valor (COP)": 950000.0}}, "added_rows": [], "deleted_rows": []}
+  app_agencia.run()
+  assert not app_agencia.exception
+  assert metricas(app_agencia)[0] == F["num"](61_178_600 + 500_000)
+
+
+def test_agencia_apagado_conserva_los_cuatro_campos(app_agencia):
+  assert not app_agencia.exception
+  assert metricas(app_agencia)[0] == "61.178.600"
+
+
+def test_csv_y_liquidacion_con_desglose_usan_los_componentes():
+  d = _datos(desglose={"Almacenaje": 300000.0, "Agentes": 450000.0})
+  fila = F["fila_csv"](d)
+  assert fila["Gasto Almacenaje COP"] == 300000.0 and fila["Gasto Agentes COP"] == 450000.0
+  assert fila["Gasto Bancarios COP"] == 0
+  conceptos = [c for c, _, _ in F["lineas_liquidacion"](d)]
+  assert "Almacenaje" in conceptos and "Agentes" in conceptos
+  assert "Agenciamiento SIA" not in conceptos
+
+
+def test_sin_desglose_siguen_los_cuatro_gastos_fijos():
+  conceptos = [c for c, _, _ in F["lineas_liquidacion"](_datos())]
+  assert "Agenciamiento SIA" in conceptos
+  assert "Gasto Almacenaje COP" not in F["fila_csv"](_datos())
