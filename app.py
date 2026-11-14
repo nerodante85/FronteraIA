@@ -24,6 +24,7 @@ if not (hasattr(_pv, "cargar_validaciones") and hasattr(_pv, "catalogo_ampliado"
 from partidas_validadas import cargar_validaciones, catalogo_ampliado  # noqa: E402
 import analitica  # noqa: E402
 import dian_arancel  # noqa: E402
+import dfi  # noqa: E402  (módulo DFI)
 
 # ==================== CONFIGURACIÓN DE PÁGINA ====================
 st.set_page_config(
@@ -135,7 +136,7 @@ hr { border-color: var(--fiq-line) !important; }
 .page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
 
 /* Pasos del formulario: paneles menta con campos blancos */
-.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica {
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica {
     background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
 .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
@@ -237,7 +238,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
 
 @media (max-width: 900px) {
     .st-key-quote { position: static; }
-    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-logistica { padding: 20px 18px 14px; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
     /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
     [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
@@ -524,7 +525,8 @@ def lineas_liquidacion(d):
   """Filas (concepto, valor, destacada) de la liquidación, para el PDF."""
   usd = lambda v: f"${num(v, 2)} USD"
   cop = lambda v: f"${num(v)} COP"
-  return [
+  incoterm = [("INCOTERM acordado", d["incoterm"], False)] if d.get("incoterm") else []
+  return incoterm + [
       ("Valor FOB", usd(d["fob_usd"]), False),
       ("Flete internacional", usd(d["flete_usd"]), False),
       ("Seguro internacional", usd(d["seguro_usd"]), False),
@@ -561,6 +563,7 @@ def fila_csv(d):
       "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
       "Producto": d["producto"],
       "Partida": d["partida"],
+      "INCOTERM": d.get("incoterm", ""),
       "Unidades": d["unidades"],
       "FOB USD": d["fob_usd"],
       "Flete USD": d["flete_usd"],
@@ -1003,6 +1006,32 @@ def calculadora():
         pct_iva = st.number_input(
             "IVA (%)", min_value=0.0, max_value=100.0, value=def_iva, step=1.0
         )
+    with st.container(key="paso-incoterm"):
+      with st.expander("¿Qué INCOTERM te conviene?"):
+        st.caption(
+            "Responde como vendedor. El asistente solo orienta y deja constancia en la cotización:"
+            " no cambia ninguna cifra."
+        )
+        respuestas = [
+            st.radio(texto, ["Sí", "No"], index=0, horizontal=True, key=f"incoterm_p{i}") == "Sí"
+            for i, texto in enumerate([
+                "¿Está preparado para asumir todos los costos y riesgos hasta las instalaciones del comprador?",
+                "¿Puede llevar la mercancía hasta el lugar de entrega acordado (al otro lado de la frontera)?",
+                "¿Se pueden entregar las mercancías al comprador sin poner en peligro el pago?",
+                "¿Puede obtener la autorización de importación y realizar los trámites? ¿Puede recuperar el IVA?",
+            ], 1)
+        ]
+        sugeridos = dfi.sugerir_incoterm(*respuestas)
+        for codigo in sugeridos:
+          st.markdown(f"**{codigo}** — {dfi.DESCRIPCION_INCOTERM[codigo]}")
+        st.caption(
+            "Solo «todo Sí → DDP» está confirmado contra el simulador DFI; el resto sigue las reglas"
+            " generales de Incoterms 2020."
+        )
+      incoterm_acordado = st.selectbox(
+          "INCOTERM acordado (opcional)", ["No definido"] + list(dfi.DESCRIPCION_INCOTERM),
+          key="incoterm_acordado",
+      )
     with st.container(key="paso-logistica"):
       titulo("logistica", "Logística Frontera Cúcuta (COP)", 4)
       st.caption(
@@ -1099,6 +1128,7 @@ def calculadora():
       "costo_unitario_cop": costo_unitario_cop,
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "incoterm": "" if incoterm_acordado == "No definido" else incoterm_acordado,
       "emision": emision,
       "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
       "estado_aranceles": estado_aranceles(
