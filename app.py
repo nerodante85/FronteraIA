@@ -61,6 +61,12 @@ ICONOS = {
 }
 
 
+def html_compacto(html):
+  """Quita sangría y líneas vacías: en Markdown una línea en blanco cierra el
+  bloque HTML y lo que sigue con 4+ espacios se pinta como código."""
+  return "\n".join(l.strip() for l in html.splitlines() if l.strip())
+
+
 def icono(nombre, tamano=22):
   """SVG en línea del set FronteraIQ; toma el color del texto (currentColor)."""
   return (
@@ -1339,7 +1345,7 @@ def calculadora():
 
   with panel:
     st.markdown(
-        f"""
+        html_compacto(f"""
         <div class="quote">
             <div class="quote-top"><span class="quote-label">Costo total landed</span>{chip_trm}</div>
             <div class="metric-value is-hero">$ {num(costo_total_landed_cop)}</div>
@@ -1361,7 +1367,7 @@ def calculadora():
             <p class="quote-nota">Estimación de costos, no es una liquidación oficial de la DIAN.</p>
             <a href="{url_whatsapp}" target="_blank" class="whatsapp-btn">Pedir asesoría por WhatsApp {icono('flecha', 20)}</a>
         </div>
-    """,
+    """),
         unsafe_allow_html=True,
     )
 
