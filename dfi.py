@@ -39,3 +39,13 @@ def sugerir_incoterm(r1, r2, r3, r4):
   if r2:
     return ("CPT", "CIP", "CFR", "CIF")
   return ("EXW", "FCA", "FAS", "FOB") if r3 else ("FCA", "FOB")
+
+
+def costo_capital(valor_cop, tasa_anual_pct, dias):
+  """Costo de financiar el inventario: valor × tasa anual × días / 365 (en COP).
+
+  Supuesto aprobado como punto de partida (no se vio la fórmula exacta del DFI).
+  Valor, tasa o días negativos o cero dan 0.
+  """
+  valor, tasa, dias = max(float(valor_cop), 0.0), max(float(tasa_anual_pct), 0.0), max(float(dias), 0.0)
+  return valor * (tasa / 100) * dias / 365

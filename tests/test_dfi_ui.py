@@ -43,3 +43,50 @@ def test_csv_y_liquidacion_incluyen_el_incoterm():
 def test_sin_incoterm_la_liquidacion_no_cambia():
   assert all(c != "INCOTERM acordado" for c, _, _ in F["lineas_liquidacion"](_datos()))
   assert F["fila_csv"](_datos())["INCOTERM"] == ""
+
+
+# ---------- costo de capital (Pro) ----------
+def _landed_esperado(capital=0.0):
+  return F["num"](61_178_600 + capital)
+
+
+def test_gratuito_ve_el_teaser_de_capital_y_el_landed_no_cambia(nueva_app):
+  at = nueva_app()
+  assert any("costo de capital" in i.value.lower() for i in at.info)
+  assert len(at.checkbox) == 0  # ninguna casilla de capital para el plan gratuito
+  assert metricas(at)[0] == "61.178.600"
+
+
+def test_pro_con_capital_apagado_no_cambia_el_landed(app_pro):
+  assert metricas(app_pro)[0] == "61.178.600"
+
+
+def test_pro_con_capital_suma_al_landed(app_pro):
+  import dfi
+  app_pro.checkbox(key="capital_activo").set_value(True).run()
+  app_pro.number_input(key="capital_tasa").set_value(12.0).run()
+  app_pro.number_input(key="capital_dias").set_value(30).run()
+  assert not app_pro.exception
+  capital = dfi.costo_capital(61_178_600, 12.0, 30)
+  assert metricas(app_pro)[0] == _landed_esperado(capital)
+
+
+def test_pro_con_tasa_cero_el_landed_no_cambia(app_pro):
+  app_pro.checkbox(key="capital_activo").set_value(True).run()
+  app_pro.number_input(key="capital_tasa").set_value(0.0).run()
+  assert not app_pro.exception
+  assert metricas(app_pro)[0] == "61.178.600"
+
+
+def test_csv_y_liquidacion_incluyen_el_capital():
+  d = _datos(costo_capital_cop=603405.0, tasa_capital_pct=12.0, dias_capital=30)
+  fila = F["fila_csv"](d)
+  assert fila["Costo capital COP"] == 603405.0
+  assert fila["Tasa capital %"] == 12.0 and fila["Dias capital"] == 30
+  assert any(c == "Costo de capital del inventario" for c, _, _ in F["lineas_liquidacion"](d))
+
+
+def test_sin_capital_no_hay_linea_ni_cifras_en_el_csv():
+  assert all("capital" not in c.lower() for c, _, _ in F["lineas_liquidacion"](_datos()))
+  fila = F["fila_csv"](_datos())
+  assert fila["Costo capital COP"] == 0

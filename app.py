@@ -136,7 +136,7 @@ hr { border-color: var(--fiq-line) !important; }
 .page-sub { font-size: 18px; color: var(--fiq-muted); max-width: 640px; margin: 0 0 36px; }
 
 /* Pasos del formulario: paneles menta con campos blancos */
-.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica {
+.st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital {
     background: var(--fiq-panel); border-radius: var(--fiq-r-card); padding: 28px 28px 20px;
 }
 .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos { margin-bottom: 20px; }
@@ -238,7 +238,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--fiq-focus) !imp
 
 @media (max-width: 900px) {
     .st-key-quote { position: static; }
-    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica { padding: 20px 18px 14px; }
+    .st-key-paso-mercancia, .st-key-paso-valores, .st-key-paso-tributos, .st-key-paso-incoterm, .st-key-paso-logistica, .st-key-paso-capital { padding: 20px 18px 14px; }
     .quote { padding: 24px 20px 20px; }
     /* En pantallas angostas las columnas se apilan: el resultado va primero y compacto */
     [data-testid="stColumn"]:has(.st-key-quote) { order: -1; }
@@ -526,6 +526,10 @@ def lineas_liquidacion(d):
   usd = lambda v: f"${num(v, 2)} USD"
   cop = lambda v: f"${num(v)} COP"
   incoterm = [("INCOTERM acordado", d["incoterm"], False)] if d.get("incoterm") else []
+  capital = [
+      ("Costo de capital del inventario", cop(d["costo_capital_cop"]), False),
+      (f"Supuesto: {d['tasa_capital_pct']:g} % anual x {d['dias_capital']:g} dias", "", False),
+  ] if d.get("costo_capital_cop") else []
   return incoterm + [
       ("Valor FOB", usd(d["fob_usd"]), False),
       ("Flete internacional", usd(d["flete_usd"]), False),
@@ -541,6 +545,7 @@ def lineas_liquidacion(d):
       ("Transporte terrestre local", cop(d["transporte_local_cop"]), False),
       ("Otros gastos / inspecciones", cop(d["otros_gastos_cop"]), False),
       ("Total gastos logísticos Cúcuta", cop(d["gastos_locales_cop"]), False),
+  ] + capital + [
       ("COSTO TOTAL LANDED", cop(d["costo_total_landed_cop"]), True),
       ("COSTO LANDED UNITARIO", f"${num(d['costo_unitario_cop'], 2)} COP", True),
       (f"Margen deseado ({d['pct_margen']:g} % sobre el precio)", "", False),
@@ -581,6 +586,9 @@ def fila_csv(d):
       "Bodegaje COP": d["bodegaje_cop"],
       "Transporte local COP": d["transporte_local_cop"],
       "Otros gastos COP": d["otros_gastos_cop"],
+      "Costo capital COP": d.get("costo_capital_cop", 0),
+      "Tasa capital %": d.get("tasa_capital_pct", 0),
+      "Dias capital": d.get("dias_capital", 0),
       "Costo landed COP": d["costo_total_landed_cop"],
       "Costo unitario COP": d["costo_unitario_cop"],
       "Margen %": d["pct_margen"],
@@ -1074,6 +1082,31 @@ def calculadora():
       )
 
 
+  with col_form:
+    with st.container(key="paso-capital"):
+      st.markdown("#### Costo de capital del inventario (Pro)")
+      if licencias.nivel_permite(nivel, "pro"):
+        capital_activo = st.checkbox("Incluir costo de capital del inventario", key="capital_activo")
+        capital_tasa = st.number_input(
+            "Tasa de interés anual (%)", min_value=0.0, max_value=1000.0, value=12.0, step=0.5,
+            key="capital_tasa",
+        )
+        capital_dias = st.number_input(
+            "Días de inmovilización del inventario", min_value=0, max_value=3650, value=30, step=1,
+            key="capital_dias",
+        )
+        st.caption(
+            "Costo = (CIF + tributos + gastos locales) × tasa anual × días / 365. Se suma al costo landed"
+            " solo si marcas la casilla."
+        )
+      else:
+        capital_activo, capital_tasa, capital_dias = False, 0.0, 0
+        st.info(
+            "Costo de capital del inventario: suma al costo landed lo que cuesta financiar la mercancía"
+            " mientras llega y se vende. Disponible con licencia Pro."
+        )
+
+
   # ==================== CÁLCULOS ====================
   cif_usd = fob_usd + flete_usd + seguro_usd
   cif_cop = cif_usd * trm
@@ -1086,7 +1119,11 @@ def calculadora():
   total_gastos_locales_cop = (
       agenciamiento_cop + bodegaje_cop + transporte_local_cop + otros_gastos_cop
   )
-  costo_total_landed_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+  costo_antes_capital_cop = cif_cop + total_tributos_cop + total_gastos_locales_cop
+  costo_capital_cop = (
+      dfi.costo_capital(costo_antes_capital_cop, capital_tasa, capital_dias) if capital_activo else 0.0
+  )
+  costo_total_landed_cop = costo_antes_capital_cop + costo_capital_cop
   costo_unitario_cop = costo_total_landed_cop / unidades if unidades > 0 else 0
   precio_sugerido_unitario_cop = (
       costo_unitario_cop / (1 - (pct_margen / 100)) if pct_margen < 100 else 0
@@ -1128,6 +1165,9 @@ def calculadora():
       "costo_unitario_cop": costo_unitario_cop,
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
+      "costo_capital_cop": costo_capital_cop,
+      "tasa_capital_pct": capital_tasa if capital_activo else 0.0,
+      "dias_capital": capital_dias if capital_activo else 0,
       "incoterm": "" if incoterm_acordado == "No definido" else incoterm_acordado,
       "emision": emision,
       "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
@@ -1162,6 +1202,14 @@ def calculadora():
   pct_cif = cif_cop / base_barra * 100
   pct_trib = total_tributos_cop / base_barra * 100
   pct_gastos = total_gastos_locales_cop / base_barra * 100
+  pct_capital = costo_capital_cop / base_barra * 100
+  barra_capital = (
+      f'<i style="width:{pct_capital:.2f}%;background:#D9E3E2"></i>' if costo_capital_cop > 0 else ""
+  )
+  leyenda_capital = (
+      f'<div><b style="background:#D9E3E2"></b><span>Costo de capital</span><span>$ {num(costo_capital_cop)}</span></div>'
+      if costo_capital_cop > 0 else ""
+  )
 
   with panel:
     st.markdown(
@@ -1171,12 +1219,13 @@ def calculadora():
             <div class="metric-value is-hero">$ {num(costo_total_landed_cop)}</div>
             <div class="metric-subtext">COP puesto en Cúcuta, todo incluido</div>
             <div class="quote-barra" role="img" aria-label="Proporción de CIF, tributos y gastos locales en el costo landed">
-                <i style="width:{pct_cif:.2f}%;background:var(--fiq-teal-light)"></i><i style="width:{pct_trib:.2f}%;background:var(--fiq-signal)"></i><i style="width:{pct_gastos:.2f}%;background:#B9CCCB"></i>
+                <i style="width:{pct_cif:.2f}%;background:var(--fiq-teal-light)"></i><i style="width:{pct_trib:.2f}%;background:var(--fiq-signal)"></i><i style="width:{pct_gastos:.2f}%;background:#B9CCCB"></i>{barra_capital}
             </div>
             <div class="quote-leyenda">
                 <div><b style="background:var(--fiq-teal-light)"></b><span>Valor CIF en pesos</span><span>$ {num(cif_cop)}</span></div>
                 <div><b style="background:var(--fiq-signal)"></b><span>Arancel + IVA</span><span>$ {num(total_tributos_cop)}</span></div>
                 <div><b style="background:#B9CCCB"></b><span>Gastos en Cúcuta</span><span>$ {num(total_gastos_locales_cop)}</span></div>
+                {leyenda_capital}
             </div>
             <div class="quote-filas">
                 <div class="quote-fila"><div><div class="quote-nombre">Costo unitario</div><div class="metric-subtext">Por unidad importada</div></div><div class="metric-value">$ {num(costo_unitario_cop, 2)}</div></div>
@@ -1210,16 +1259,18 @@ def calculadora():
 
     with col_chart:
       st.markdown("#### Distribución de Costos")
-      df_chart = pd.DataFrame({
-          "Concepto": ["CIF", "Tributos DIAN", "Gastos Locales"],
-          "Monto_COP": [cif_cop, total_tributos_cop, total_gastos_locales_cop],
-      })
+      conceptos_chart = ["CIF", "Tributos DIAN", "Gastos Locales"]
+      montos_chart = [cif_cop, total_tributos_cop, total_gastos_locales_cop]
+      if costo_capital_cop > 0:
+        conceptos_chart.append("Costo de capital")
+        montos_chart.append(costo_capital_cop)
+      df_chart = pd.DataFrame({"Concepto": conceptos_chart, "Monto_COP": montos_chart})
       fig = px.pie(
           df_chart,
           values="Monto_COP",
           names="Concepto",
           hole=0.55,
-          color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1"],
+          color_discrete_sequence=["#2E6F73", "#F5B700", "#9DB1B1", "#D9E3E2"],
       )
       fig.update_traces(marker=dict(line=dict(color="#EEF4F2", width=3)))
       fig.update_layout(
@@ -1252,6 +1303,9 @@ def calculadora():
               f"$ {num(costo_total_landed_cop)} COP",
           ],
       }
+      if costo_capital_cop > 0:
+        liquidacion_data["Concepto"].insert(-1, "Costo de capital")
+        liquidacion_data["Monto"].insert(-1, f"$ {num(costo_capital_cop)} COP")
       st.dataframe(
           pd.DataFrame(liquidacion_data), width="stretch", hide_index=True
       )
