@@ -43,3 +43,10 @@ def test_solo_peso_o_solo_volumen_cuenta():
 def test_tipo_desconocido_lanza_keyerror():
   with pytest.raises(KeyError):
     dfi.contenedores_necesarios(10, 10, "ST60")
+
+
+@pytest.mark.parametrize("tipo", list(dfi.CONTENEDORES))
+@pytest.mark.parametrize("n", [3, 15, 30, 31, 55])
+def test_multiplos_exactos_no_pasan_un_contenedor_de_mas(tipo, n):
+  volumen = dfi.CONTENEDORES[tipo]["volumen_m3"] * n
+  assert dfi.contenedores_necesarios(volumen, 0, tipo)["cantidad"] == n

@@ -10,7 +10,7 @@ ZONA = timezone(timedelta(hours=-5))
 EMISION = datetime(2026, 10, 17, 9, 5, tzinfo=ZONA)
 
 F = cargar_funciones(
-    "CAMPOS_CODIGO", "codigo_cotizacion", "origen_trm", "estado_aranceles",
+    "CAMPOS_CODIGO", "CAMPOS_CODIGO_DFI", "codigo_cotizacion", "origen_trm", "estado_aranceles",
     "lineas_liquidacion", "fila_csv", "texto_para_csv", "generar_pdf_cotizacion", "_texto_pdf",
     "_REEMPLAZOS_PDF", "num", "ICONOS", "icono",
 )

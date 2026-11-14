@@ -400,9 +400,22 @@ CAMPOS_CODIGO = (
 )
 
 
+CAMPOS_CODIGO_DFI = (
+    "costo_capital_cop", "tasa_capital_pct", "dias_capital", "incoterm", "contenedor",
+    "contenedores_cantidad",
+)
+
+
 def codigo_cotizacion(datos, emision):
-  """Código de cotización determinístico: misma operación y mismo día, mismo código."""
+  """Código de cotización determinístico: misma operación y mismo día, mismo código.
+  Las cifras del módulo DFI entran solo si se usan, para no cambiar el código de las cotizaciones
+  que no las usan."""
   base = "|".join(str(datos[campo]) for campo in CAMPOS_CODIGO)
+  extras = [f"{c}={datos[c]}" for c in CAMPOS_CODIGO_DFI if datos.get(c)]
+  if datos.get("desglose_activo"):
+    extras.append(f"desglose={sorted((datos.get('desglose') or {}).items())}|gastos={datos['gastos_locales_cop']}")
+  if extras:
+    base += "|" + "|".join(extras)
   huella = hashlib.sha256(base.encode("utf-8")).hexdigest()[:6].upper()
   return f"FIQ-{emision:%Y%m%d}-{huella}"
 
@@ -530,7 +543,7 @@ def lineas_liquidacion(d):
       ("Costo de capital del inventario", cop(d["costo_capital_cop"]), False),
       (f"Supuesto: {d['tasa_capital_pct']:g} % anual x {d['dias_capital']:g} dias", "", False),
   ] if d.get("costo_capital_cop") else []
-  if d.get("desglose"):
+  if d.get("desglose_activo"):
     gastos = [(comp, cop(v), False) for comp, v in d["desglose"].items()]
   else:
     gastos = [
@@ -575,7 +588,8 @@ def fila_csv(d):
   """Una fila de CSV con todo lo necesario para reconstruir la cotización."""
   por_componente = {
       f"Gasto {comp} COP": d["desglose"].get(comp, 0) for comp in dfi.COMPONENTES_IMPORTACION
-  } if d.get("desglose") else {}
+  } if d.get("desglose_activo") else {}
+  fijo = (lambda v: "") if d.get("desglose_activo") else (lambda v: v)
   return {k: texto_para_csv(v) for k, v in {
       "Codigo cotizacion": d["codigo"],
       "Fecha emision": d["emision"].strftime("%Y-%m-%d %H:%M"),
@@ -595,10 +609,11 @@ def fila_csv(d):
       "CIF COP": d["cif_cop"],
       "Arancel COP": d["arancel_cop"],
       "IVA COP": d["iva_cop"],
-      "Agenciamiento COP": d["agenciamiento_cop"],
-      "Bodegaje COP": d["bodegaje_cop"],
-      "Transporte local COP": d["transporte_local_cop"],
-      "Otros gastos COP": d["otros_gastos_cop"],
+      "Agenciamiento COP": fijo(d["agenciamiento_cop"]),
+      "Bodegaje COP": fijo(d["bodegaje_cop"]),
+      "Transporte local COP": fijo(d["transporte_local_cop"]),
+      "Otros gastos COP": fijo(d["otros_gastos_cop"]),
+      "Gastos locales COP": d["gastos_locales_cop"],
       **por_componente,
       "Contenedor": d.get("contenedor", ""),
       "Contenedores cantidad": d.get("contenedores_cantidad", 0),
@@ -793,7 +808,8 @@ def calcular_embarque(items, flete_usd, seguro_usd, trm, gastos_locales_cop, pct
   return lineas, totales
 
 
-def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_cop, pct_margen, def_arancel, def_iva):
+def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_cop, pct_margen, def_arancel, def_iva,
+                           capital_activo=False):
   """Cotización de un embarque con varias mercancías (función Pro)."""
   st.divider()
   titulo("mercancia", "Cotización multimercancía (Pro)", 3)
@@ -809,6 +825,8 @@ def seccion_multimercancia(es_pro, trm, flete_usd, seguro_usd, gastos_locales_co
       "Usa el flete, el seguro, los gastos locales, el margen y la TRM de arriba. "
       "El flete, el seguro y los gastos se reparten según el peso de cada línea en el FOB total."
   )
+  if capital_activo:
+    st.caption("Esta cotización no incluye el costo de capital del inventario que activaste arriba.")
   base = pd.DataFrame([
       {"Producto": "Mercancía 1", "Partida": "", "FOB (USD)": 5000.0, "Unidades": 100.0,
        "Arancel (%)": float(def_arancel), "IVA (%)": float(def_iva)},
@@ -1062,14 +1080,17 @@ def calculadora():
           "Ingresa estos gastos con su IVA incluido. Si tu negocio no puede descontar ese IVA,"
           " es parte de tu costo real."
       )
+      fijos_off = licencias.nivel_permite(nivel, "agencia") and st.session_state.get("desglose_activo", False)
+      if fijos_off:
+        st.caption("Con el desglose activo, estos cuatro gastos se editan en la tabla de desglose.")
       col_g1, col_g2 = st.columns(2)
       with col_g1:
         agenciamiento_cop = st.number_input(
-            "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0
+            "Agenciamiento SIA (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=450000.0, step=50000.0, disabled=fijos_off
         )
       with col_g2:
         bodegaje_cop = st.number_input(
-            "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0
+            "Bodegaje / Depósito (COP)", min_value=0.0, max_value=1_000_000_000_000.0, value=300000.0, step=25000.0, disabled=fijos_off
         )
       col_g3, col_g4 = st.columns(2)
       with col_g3:
@@ -1079,6 +1100,7 @@ def calculadora():
             max_value=1_000_000_000_000.0,
             value=800000.0,
             step=50000.0,
+            disabled=fijos_off,
         )
       with col_g4:
         otros_gastos_cop = st.number_input(
@@ -1087,6 +1109,7 @@ def calculadora():
             max_value=1_000_000_000_000.0,
             value=200000.0,
             step=25000.0,
+            disabled=fijos_off,
         )
 
       pct_margen = st.number_input(
@@ -1265,6 +1288,7 @@ def calculadora():
       "pct_margen": pct_margen,
       "precio_sugerido_unitario_cop": precio_sugerido_unitario_cop,
       "desglose": desglose,
+      "desglose_activo": desglose_activo,
       "contenedor": contenedor_elegido,
       "contenedores_cantidad": contenedores_cantidad,
       "costo_capital_cop": costo_capital_cop,
@@ -1464,7 +1488,8 @@ def calculadora():
 
 
   seccion_multimercancia(
-      es_pro, trm, flete_usd, seguro_usd, total_gastos_locales_cop, pct_margen, def_arancel, def_iva
+      es_pro, trm, flete_usd, seguro_usd, total_gastos_locales_cop, pct_margen, def_arancel, def_iva,
+      capital_activo=capital_activo,
   )
 
 

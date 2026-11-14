@@ -3,7 +3,7 @@ import pytest
 
 from conftest import cargar_funciones, metricas
 
-F = cargar_funciones("lineas_liquidacion", "fila_csv", "texto_para_csv", "num")
+F = cargar_funciones("lineas_liquidacion", "fila_csv", "texto_para_csv", "num", "CAMPOS_CODIGO", "CAMPOS_CODIGO_DFI", "codigo_cotizacion")
 
 
 def _datos(**extra):
@@ -183,7 +183,7 @@ def test_agencia_apagado_conserva_los_cuatro_campos(app_agencia):
 
 
 def test_csv_y_liquidacion_con_desglose_usan_los_componentes():
-  d = _datos(desglose={"Almacenaje": 300000.0, "Agentes": 450000.0})
+  d = _datos(desglose_activo=True, desglose={"Almacenaje": 300000.0, "Agentes": 450000.0})
   fila = F["fila_csv"](d)
   assert fila["Gasto Almacenaje COP"] == 300000.0 and fila["Gasto Agentes COP"] == 450000.0
   assert fila["Gasto Bancarios COP"] == 0
@@ -196,3 +196,60 @@ def test_sin_desglose_siguen_los_cuatro_gastos_fijos():
   conceptos = [c for c, _, _ in F["lineas_liquidacion"](_datos())]
   assert "Agenciamiento SIA" in conceptos
   assert "Gasto Almacenaje COP" not in F["fila_csv"](_datos())
+
+
+# ---------- correcciones de la revisión final ----------
+def _fijos_en_csv(fila):
+  return [fila[k] for k in ("Agenciamiento COP", "Bodegaje COP", "Transporte local COP", "Otros gastos COP")]
+
+
+def test_desglose_activo_con_todo_en_cero_no_vuelve_a_los_gastos_fijos():
+  d = _datos(desglose_activo=True, desglose={}, gastos_locales_cop=0.0)
+  conceptos = [c for c, _, _ in F["lineas_liquidacion"](d)]
+  assert not {"Agenciamiento SIA", "Bodegaje / depósito"} & set(conceptos)
+  assert F["fila_csv"](d)["Gastos locales COP"] == 0.0
+
+
+def test_csv_con_desglose_vacia_los_cuatro_gastos_fijos_y_trae_el_total():
+  d = _datos(desglose_activo=True, desglose={"Agentes": 950000.0}, gastos_locales_cop=950000.0)
+  fila = F["fila_csv"](d)
+  assert _fijos_en_csv(fila) == ["", "", "", ""]
+  assert fila["Gastos locales COP"] == 950000.0 and fila["Gasto Agentes COP"] == 950000.0
+
+
+def test_csv_sin_desglose_conserva_los_cuatro_gastos_y_el_total():
+  fila = F["fila_csv"](_datos())
+  assert _fijos_en_csv(fila) == [450000.0, 300000.0, 800000.0, 200000.0]
+  assert fila["Gastos locales COP"] == 1750000.0
+
+
+@pytest.mark.parametrize("cambio", [
+    dict(costo_capital_cop=603405.0, tasa_capital_pct=12.0, dias_capital=30),
+    dict(incoterm="DDP"),
+    dict(contenedor="CONTENEDOR ST 20'", contenedores_cantidad=1),
+    dict(desglose_activo=True, desglose={"Agentes": 950000.0}, gastos_locales_cop=950000.0),
+    dict(desglose_activo=True, desglose={}, gastos_locales_cop=0.0),
+])
+def test_el_codigo_de_cotizacion_cambia_con_las_cifras_nuevas(cambio):
+  base = _datos()
+  assert F["codigo_cotizacion"](_datos(**cambio), base["emision"]) != F["codigo_cotizacion"](base, base["emision"])
+
+
+def test_el_codigo_no_cambia_si_no_se_usan_las_funciones_nuevas():
+  base = _datos()
+  apagado = _datos(incoterm="", costo_capital_cop=0.0, contenedor="", desglose={}, desglose_activo=False)
+  assert F["codigo_cotizacion"](apagado, base["emision"]) == F["codigo_cotizacion"](base, base["emision"])
+
+
+def test_con_desglose_activo_los_cuatro_campos_fijos_quedan_deshabilitados(app_agencia):
+  def fijos(at):
+    return [n for n in at.number_input if n.label.split(" (")[0] in
+            ("Agenciamiento SIA", "Bodegaje / Depósito", "Transporte Terrestre Local", "Otros Gastos / Inspecciones")]
+  assert len(fijos(app_agencia)) == 4 and not any(n.proto.disabled for n in fijos(app_agencia))
+  app_agencia.checkbox(key="desglose_activo").set_value(True).run()
+  assert all(n.proto.disabled for n in fijos(app_agencia))
+
+
+def test_multimercancia_avisa_que_no_incluye_el_capital(app_pro):
+  app_pro.checkbox(key="capital_activo").set_value(True).run()
+  assert any("no incluye el costo de capital" in c.value.lower() for c in app_pro.caption)

@@ -70,7 +70,10 @@ def contenedores_necesarios(volumen_m3, peso_kg, tipo):
   """
   cap = CONTENEDORES[tipo]
   volumen, peso = max(float(volumen_m3), 0.0), max(float(peso_kg), 0.0)
-  cantidad = max(math.ceil(volumen / cap["volumen_m3"]), math.ceil(peso / cap["peso_kg"]))
+  # El redondeo a 9 decimales evita un contenedor de más por error de coma flotante (3,0000000000000004).
+  cantidad = max(
+      math.ceil(round(volumen / cap["volumen_m3"], 9)), math.ceil(round(peso / cap["peso_kg"], 9))
+  )
   if cantidad == 0:
     return {"cantidad": 0, "ocupacion_volumen_pct": 0.0, "ocupacion_peso_pct": 0.0, "limitante": None}
   ocup_vol = volumen / (cantidad * cap["volumen_m3"]) * 100
