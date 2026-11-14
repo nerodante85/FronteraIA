@@ -53,6 +53,14 @@ def validar_licencia(clave, sesion, url, service_key):
   return datos
 
 
+_ORDEN_NIVEL = {"pro": 1, "agencia": 2}
+
+
+def nivel_permite(nivel, requerido):
+  """True si `nivel` alcanza `requerido` (agencia incluye todo lo de pro). Nivel desconocido o None: False."""
+  return _ORDEN_NIVEL.get(nivel, 0) >= _ORDEN_NIVEL[requerido]
+
+
 MENSAJES = {
     "no_encontrada": "⚠️ Clave de licencia no válida.",
     "revocada": "⚠️ Esta licencia fue revocada. Escríbenos por WhatsApp para resolverlo.",

@@ -688,8 +688,9 @@ def _consultar_licencia(clave, sesion, url, llave):
   return licencias.validar_licencia(clave, sesion, url, llave)
 
 
-def validar_licencia_pro(clave):
-  """Devuelve (es_pro, mensaje_de_error). Falla cerrada: si no se puede verificar, no hay Pro."""
+def validar_licencia_nivel(clave):
+  """Devuelve (nivel, mensaje_de_error); nivel es "pro", "agencia" o None.
+  Falla cerrada: si no se puede verificar, no hay nivel."""
   config = _config_licencias()
   if config:
     if "sesion_id" not in st.session_state:
@@ -697,19 +698,23 @@ def validar_licencia_pro(clave):
     try:
       resultado = _consultar_licencia(clave, st.session_state["sesion_id"], *config)
     except Exception:
-      return False, licencias.mensaje_de_rechazo("servicio_no_disponible")
+      return None, licencias.mensaje_de_rechazo("servicio_no_disponible")
     if resultado.get("valida"):
-      return True, None
-    return False, licencias.mensaje_de_rechazo(resultado.get("motivo"))
+      return resultado.get("nivel"), None
+    return None, licencias.mensaje_de_rechazo(resultado.get("motivo"))
 
   clave_valida = _clave_pro_configurada()
   if clave_valida and hmac.compare_digest(
       clave.encode("utf-8"), str(clave_valida).encode("utf-8")
   ):
-    return True, None
-  return False, "Clave de licencia no válida."
+    return "pro", None
+  return None, "Clave de licencia no válida."
 
 
+def validar_licencia_pro(clave):
+  """Devuelve (es_pro, mensaje_de_error). Falla cerrada: si no se puede verificar, no hay Pro."""
+  nivel, error = validar_licencia_nivel(clave)
+  return nivel is not None, error
 
 
 def equivalencias_moneda(costo_cop, trm, bs_por_usd, cop_por_usdt):
@@ -840,18 +845,21 @@ def calculadora():
   tipo_plan = st.sidebar.radio("Plan de Usuario", ["Gratuito", "Pro / Premium"], horizontal=True)
 
   es_pro = False
+  nivel = None
   if tipo_plan == "Pro / Premium":
     clave_pro = st.sidebar.text_input("Clave de Licencia Pro", type="password")
     if not _config_licencias() and not _clave_pro_configurada():
       st.sidebar.error("Las licencias Pro no están configuradas en este despliegue.")
     elif clave_pro:
-      es_pro, error_licencia = validar_licencia_pro(clave_pro)
+      nivel, error_licencia = validar_licencia_nivel(clave_pro)
+      es_pro = nivel is not None
       if es_pro:
         registrar_evento("licencia_pro_activada")
         st.sidebar.success("Licencia Pro activa")
       else:
         st.sidebar.warning(error_licencia)
 
+  st.session_state["nivel_licencia"] = nivel  # pro / agencia / None; lo leen las funciones de pago
   st.sidebar.divider()
   titulo("parametros", "Parámetros de Monedas", 2, st.sidebar)
   trm = st.sidebar.number_input(
