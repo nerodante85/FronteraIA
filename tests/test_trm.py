@@ -59,11 +59,11 @@ def test_con_la_fuente_caida_no_se_reintenta_en_cada_interaccion(monkeypatch, nu
   at = nueva_app()
   at.sidebar.number_input[0].set_value(4100.0).run()
   at.sidebar.number_input[0].set_value(4200.0).run()
-  assert len(llamadas) == 1  # un solo intento dentro de los 60 s de espera
+  assert len(llamadas) == 2  # una sola consulta (con su reintento) dentro de los 60 s de espera
   assert any("No se pudo consultar la TRM oficial" in w.value for w in at.sidebar.warning)
   reloj["t"] += 61
   at.sidebar.number_input[0].set_value(4300.0).run()
-  assert len(llamadas) == 2
+  assert len(llamadas) == 4
 
 
 def test_valor_fuera_de_rango_se_rechaza(monkeypatch, nueva_app):
@@ -87,3 +87,78 @@ def test_forma_de_la_consulta(monkeypatch, nueva_app):
   assert params["$where"].startswith("vigenciadesde <= '")
   assert params["$limit"] == 1
   assert timeout is not None
+
+
+def test_un_fallo_momentaneo_se_resuelve_con_el_reintento(monkeypatch, nueva_app):
+  llamadas = []
+
+  def falla_una_vez(*a, **k):
+    llamadas.append(1)
+    if len(llamadas) == 1:
+      raise requests.Timeout("tardó demasiado")
+    return respuesta_trm(3316.7, "2026-11-14T00:00:00.000")
+
+  monkeypatch.setattr(requests, "get", falla_una_vez)
+  at = nueva_app()
+  assert len(llamadas) == 2
+  assert numero_lateral(at).value == 3316.7
+  assert not at.sidebar.warning
+
+
+def test_un_valor_invalido_no_se_reintenta(monkeypatch, nueva_app):
+  llamadas = []
+
+  def fuera_de_rango(*a, **k):
+    llamadas.append(1)
+    return respuesta_trm(99999.0)
+
+  monkeypatch.setattr(requests, "get", fuera_de_rango)
+  nueva_app()
+  assert len(llamadas) == 1
+
+
+def test_si_falla_tras_un_exito_se_usa_la_ultima_trm_oficial(monkeypatch, nueva_app):
+  reloj = {"t": 1000.0}
+  monkeypatch.setattr(time, "monotonic", lambda: reloj["t"])
+  monkeypatch.setattr(requests, "get", lambda *a, **k: respuesta_trm(3316.7, "2026-11-14T00:00:00.000"))
+  nueva_app()
+
+  def falla(*a, **k):
+    raise requests.ConnectionError("sin red")
+
+  monkeypatch.setattr(requests, "get", falla)
+  st.cache_data.clear()  # equivale a que venza la hora de caché de la consulta
+  reloj["t"] += 3700
+  at = nueva_app()
+  assert not at.exception
+  assert numero_lateral(at).value == 3316.7  # no los 4.000 fijos
+  avisos = [w.value for w in at.sidebar.warning]
+  assert any("No se pudo actualizar la TRM oficial" in a and "2026-11-14" in a for a in avisos)
+  assert not any("NO es la TRM vigente" in a for a in avisos)
+
+
+def test_la_ultima_trm_oficial_caduca_a_los_tres_dias(monkeypatch, nueva_app):
+  reloj = {"t": 1000.0}
+  monkeypatch.setattr(time, "monotonic", lambda: reloj["t"])
+  monkeypatch.setattr(requests, "get", lambda *a, **k: respuesta_trm(3316.7))
+  nueva_app()
+
+  def falla(*a, **k):
+    raise requests.ConnectionError("sin red")
+
+  monkeypatch.setattr(requests, "get", falla)
+  st.cache_data.clear()
+  reloj["t"] += 3 * 24 * 3600 + 60
+  at = nueva_app()
+  assert numero_lateral(at).value == 4000.0
+  assert any("No se pudo consultar la TRM oficial" in w.value for w in at.sidebar.warning)
+
+
+def test_el_motivo_del_fallo_queda_en_los_logs(monkeypatch, nueva_app, capsys):
+  def falla(*a, **k):
+    raise requests.ConnectionError("sin red")
+
+  monkeypatch.setattr(requests, "get", falla)
+  nueva_app()
+  registro = capsys.readouterr().err
+  assert "[FronteraIQ][TRM]" in registro and "ConnectionError" in registro and "sin red" in registro
