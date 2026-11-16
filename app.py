@@ -270,22 +270,39 @@ TRM_URL = "https://www.datos.gov.co/resource/32sa-8pi3.json"
 ZONA_COLOMBIA = timezone(timedelta(hours=-5))  # Colombia no usa horario de verano
 
 
+INTENTOS_TRM = 2
+TIMEOUT_TRM_S = 8
+PAUSA_REINTENTO_TRM_S = 0.5
+
+
+def _registrar_fallo_trm(contexto, error):
+  """Deja el motivo del fallo en los logs del servidor (Streamlit Cloud > Manage app)."""
+  print(f"[FronteraIQ][TRM] {contexto}: {type(error).__name__}: {error}", file=sys.stderr, flush=True)
+
+
 @st.cache_data(ttl=3600)
 def _consultar_trm():
   """Consulta la TRM vigente hoy. Lanza excepción si falla (los fallos no se cachean)."""
   hoy = datetime.now(ZONA_COLOMBIA).strftime("%Y-%m-%dT00:00:00")
   # La TRM de un día se publica con anticipación: se toma la última cuya
   # vigencia ya comenzó, no la más reciente publicada.
-  response = requests.get(
-      TRM_URL,
-      params={
-          "$where": f"vigenciadesde <= '{hoy}'",
-          "$order": "vigenciadesde DESC",
-          "$limit": 1,
-      },
-      timeout=5,
-  )
-  response.raise_for_status()
+  params = {
+      "$where": f"vigenciadesde <= '{hoy}'",
+      "$order": "vigenciadesde DESC",
+      "$limit": 1,
+  }
+  # datos.gov.co a veces tarda o rechaza una petición suelta: se reintenta antes
+  # de rendirse. Solo fallos de red/HTTP; un dato inválido no mejora al repetir.
+  for intento in range(1, INTENTOS_TRM + 1):
+    try:
+      response = requests.get(TRM_URL, params=params, timeout=TIMEOUT_TRM_S)
+      response.raise_for_status()
+      break
+    except requests.RequestException as error:
+      _registrar_fallo_trm(f"intento {intento}/{INTENTOS_TRM}", error)
+      if intento == INTENTOS_TRM:
+        raise
+      time.sleep(PAUSA_REINTENTO_TRM_S)
   registro = response.json()[0]
   valor = float(registro["valor"])
   if not 1000.0 <= valor <= 20000.0:
@@ -295,33 +312,54 @@ def _consultar_trm():
 
 
 ESPERA_TRAS_FALLO_S = 60
+# La última TRM oficial obtenida sirve de respaldo hasta 3 días; más vieja ya no es fiable.
+VIGENCIA_ULTIMA_TRM_S = 3 * 24 * 3600
+
+TRM_OFICIAL, TRM_ANTERIOR, TRM_SIN_DATO = "oficial", "anterior", "respaldo"
 
 
 @st.cache_resource
 def _estado_trm():
-  """Estado compartido entre sesiones: cuándo se puede volver a intentar tras un fallo."""
-  return {"reintentar_desde": 0.0}
+  """Estado compartido entre sesiones: espera tras un fallo y última TRM oficial obtenida."""
+  return {"reintentar_desde": 0.0, "ultima": None}
+
+
+def _trm_sin_consulta(estado, ahora):
+  """Qué mostrar cuando no hay consulta vigente: la última TRM oficial si es reciente, o el valor fijo."""
+  ultima = estado.get("ultima")
+  if ultima and ahora() - ultima["obtenida"] <= VIGENCIA_ULTIMA_TRM_S:
+    return ultima["valor"], ultima["fecha"], TRM_ANTERIOR
+  return TRM_RESPALDO, "", TRM_SIN_DATO
 
 
 def obtener_trm_actual(ahora=time.monotonic):
-  """Devuelve (valor, fecha, es_oficial). Si la consulta falla, usa el respaldo.
+  """Devuelve (valor, fecha, estado), con estado oficial / anterior / respaldo.
 
-  Tras un fallo no se vuelve a consultar durante ESPERA_TRAS_FALLO_S segundos: así una
-  fuente caída no añade hasta 5 s de espera a cada interacción. El fallo nunca se guarda
-  como si fuera una TRM; pasado ese tiempo se reintenta.
+  Si la consulta falla se usa la última TRM oficial obtenida (estado "anterior") y, si no
+  hay ninguna reciente, el valor fijo de respaldo. Tras un fallo no se vuelve a consultar
+  durante ESPERA_TRAS_FALLO_S segundos: así una fuente caída no añade espera a cada
+  interacción. El fallo nunca se guarda como si fuera la TRM vigente.
   """
   estado = _estado_trm()
   if ahora() < estado["reintentar_desde"]:
-    return TRM_RESPALDO, "", False
+    return _trm_sin_consulta(estado, ahora)
   try:
     valor, fecha = _consultar_trm()
-    return valor, fecha, True
-  except Exception:
+  except Exception as error:
+    _registrar_fallo_trm("consulta fallida, se usa respaldo", error)
     estado["reintentar_desde"] = ahora() + ESPERA_TRAS_FALLO_S
-    return TRM_RESPALDO, "", False
+    return _trm_sin_consulta(estado, ahora)
+  ultima = estado.get("ultima")
+  if not ultima or (ultima["valor"], ultima["fecha"]) != (valor, fecha):
+    estado["ultima"] = {"valor": valor, "fecha": fecha, "obtenida": ahora()}
+  else:
+    ultima["obtenida"] = ahora()
+  return valor, fecha, TRM_OFICIAL
 
 
-trm_oficial, trm_fecha, trm_es_oficial = obtener_trm_actual()
+trm_oficial, trm_fecha, trm_estado = obtener_trm_actual()
+trm_es_oficial = trm_estado == TRM_OFICIAL
+trm_es_anterior = trm_estado == TRM_ANTERIOR
 
 
 # ==================== BASE DE DATOS NANDINA ====================
@@ -426,12 +464,14 @@ def codigo_cotizacion(datos, emision):
   return f"FIQ-{emision:%Y%m%d}-{huella}"
 
 
-def origen_trm(trm, trm_oficial, trm_fecha, es_oficial):
+def origen_trm(trm, trm_oficial, trm_fecha, es_oficial, es_anterior=False):
   """Explica de dónde sale la TRM aplicada en la cotización."""
   if abs(trm - trm_oficial) > 1e-9:
     return "Ingresada manualmente por el usuario"
   if es_oficial:
     return f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)"
+  if es_anterior:
+    return f"Última TRM oficial obtenida, vigente desde {trm_fecha} (datos.gov.co); no se pudo actualizar"
   return "Valor de respaldo, NO es la TRM oficial"
 
 
@@ -918,6 +958,12 @@ def calculadora():
   )
   if trm_es_oficial:
     st.sidebar.caption(f"TRM oficial vigente desde {trm_fecha} (datos.gov.co)")
+  elif trm_es_anterior:
+    st.sidebar.warning(
+        "No se pudo actualizar la TRM oficial. Se usa la última obtenida"
+        f" (vigente desde {trm_fecha}), que puede haber cambiado. Verifícala o"
+        " ingresa la TRM actual manualmente."
+    )
   else:
     st.sidebar.warning(
         "No se pudo consultar la TRM oficial. Se muestra un valor de respaldo"
@@ -946,6 +992,8 @@ def calculadora():
     trm_etiqueta, trm_alerta = "TRM manual", False
   elif trm_es_oficial:
     trm_etiqueta, trm_alerta = f"TRM oficial · {trm_fecha}", False
+  elif trm_es_anterior:
+    trm_etiqueta, trm_alerta = f"Última TRM oficial · {trm_fecha}", True
   else:
     trm_etiqueta, trm_alerta = "TRM de respaldo", True
   chip_trm = (
@@ -1302,7 +1350,7 @@ def calculadora():
       "dias_capital": capital_dias if capital_activo else 0,
       "incoterm": "" if incoterm_acordado == "No definido" else incoterm_acordado,
       "emision": emision,
-      "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial),
+      "origen_trm": origen_trm(trm, trm_oficial, trm_fecha, trm_es_oficial, trm_es_anterior),
       "estado_aranceles": estado_aranceles(
           es_personalizada,
           porcentajes_ajustados,

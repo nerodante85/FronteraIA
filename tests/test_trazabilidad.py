@@ -64,6 +64,8 @@ def test_origen_trm():
   assert "oficial vigente desde 2026-10-17" in origen(3174.67, 3174.67, "2026-10-17", True)
   assert "respaldo" in origen(4000.0, 4000.0, "", False)
   assert "manualmente" in origen(3200.0, 3174.67, "2026-10-17", True)
+  anterior = origen(3316.7, 3316.7, "2026-11-14", False, True)
+  assert "Última TRM oficial" in anterior and "2026-11-14" in anterior and "no se pudo actualizar" in anterior
 
 
 def test_estado_aranceles():
